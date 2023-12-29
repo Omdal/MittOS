@@ -9,18 +9,18 @@
 ;   C = HW-port for channel control word
 ;###############################################################################
 sio_tx_blocking:
-    push    af
+    push    AF
 sio_tx_blocking_retry:
-    xor     a
-    out     (c),a                   ; Switch to register 0
-    in      a,(c)                   ; Read control status word
+    xor     A
+    out     (C),A                   ; Switch to register 0
+    in      A,(C)                   ; Read control status word
     and     4                       ; check if xmtr empty bit
-    jp      z,sio_tx_blocking_retry ; if busy, wait
+    jr      Z,sio_tx_blocking_retry ; if busy, wait
 
-    inc     c                       ; switch to data register
-    out     (c),b                   ; send the character
-    dec     c                       ; Put c register back to original state
-    pop     af
+    inc     C                       ; switch to data register
+    out     (C),B                   ; send the character
+    dec     C                       ; Put c register back to original state
+    pop     AF
     ret
 
 
@@ -43,7 +43,7 @@ sio_tx:
     out     (c),a                   ; Switch to register 0
     in      a,(c)                   ; Read control status word
     and     4                       ; check if xmtr empty bit
-    jp      z,sio_tx_fail           ; if busy, return
+    jr      z,sio_tx_fail           ; if busy, return
 
     inc     c                       ; switch to data register (2 addresses below)
     out     (c),b                   ; send the character
@@ -75,7 +75,7 @@ sio_rx_blocking_retry
     out     (c),a                   ; Switch to register 0
     in      a,(c)                   ; Read control status word
     and     1                       ; check if data is received
-    jp      z,sio_rx_blocking_retry ; if nothing, wait
+    jr      z,sio_rx_blocking_retry ; if nothing, wait
 
     inc     c                       ; switch to data register (2 addresses below)
     in      b,(c)                   ; receive the character
@@ -103,7 +103,7 @@ sio_rx:
     out     (c),a                   ; Switch to register 0
     in      a,(c)                   ; Read control status word
     and     1                       ; check if data is received
-    jp      z,sio_rx_fail           ; if nothing, return
+    jr      z,sio_rx_fail           ; if nothing, return
 
     inc     c                       ; switch to data register (2 addresses below)
     in      b,(c)                   ; send the character

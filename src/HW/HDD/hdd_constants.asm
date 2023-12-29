@@ -15,10 +15,10 @@
 ; A N 0 1 1 * LBA Bits 0-7      * LBA Bits 0-7
 ; A N 1 0 0 Cylinder Low        Cylinder Low
 ; A N 1 0 0 * LBA Bits 8-15     * LBA Bits 8-15
-; A N 1 0 1 Cylinder High       Cylinder High
+; A N 1 0 1 Cylinder High       Cylinder High   
 ; A N 1 0 1 * LBA Bits 16-23    * LBA Bits 16-23
 ; A N 1 1 0 Drive/Head          Drive/Head
-; A N 1 1 0 * LBA Bits 24-27    * LBA Bits 24-27
+; A N 1 1 0 * LBA Bits 24-27    * LBA Bits 24-31
 ; A N 1 1 1 Status              Command
 ; X X X X X Invalid Address     Invalid Address
 
@@ -53,3 +53,45 @@
 ; 1 69 57 69 57 00 00 C7 95 69 57 03 00 00 00 00 00
 ; 2 E5 6C 00 65 00 00 00 FF FF FF FF 0F 00 DA FF FF
 ; 3 FF FF
+
+; 7A 7B 78 79 * 512 = disk space
+
+
+; MBR
+; BootInd   StartingHead StartingSector StartingCylinder
+; SystemID  EndHead EndSector EndCylinder
+; Relative sectors X X X
+; Total sectors X X X
+
+; Boot indicator:
+;   0x00 Not bootable
+;   0x80 Bootable
+
+; Sector / Cylinder is split differently
+; Sector [0..5]
+; Cylinder [0..15]
+
+
+; System ID (https://www.win.tue.nl/~aeb/partitions/partition_types-1.html)
+;   0x01    FAT12<32MB
+;   0x04    FAT16<32MB
+;   0x05    MS Extended partition using CHS
+;   0x06    FAT16B
+;   0x07    NTFS,HPFS,exFAT
+;   0x0B    FAT32 CHS
+;   0x0C    FAT32 LBA
+;   0x0E    FAT16 LBA
+;   0x0F    MS Extended partition LBA
+;   0x42    Windows Dynamic volume
+;   0x82    Linux swap
+;   0x83    Linux
+;   0x84    Windows hibernation partition
+;   0x85    Linux Extended
+;   0xAB    Mac OS X boot
+;   0xAF    HFS, HFS+
+;   0xEE    MS GPT
+;   0xEF    Intel EFI
+
+
+; 1B8 - 1BB = Serial number
+; 1BC - 1BD = Reserved (00 00)
