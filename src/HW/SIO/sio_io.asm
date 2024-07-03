@@ -2,24 +2,26 @@
 ; SIO transmit character procedure, blocking until sending starts.
 ;
 ; Used registers:
-;   A,B,C
+;   A,C
 ;
 ; Preload registers:
-;   B = Character to print
+;   A = Character to print
 ;   C = HW-port for channel control word
 ;###############################################################################
 sio_tx_blocking:
     push    AF
-sio_tx_blocking_retry:
+    push    BC
+    ld      B, A                    ; Move character to B register
+_sio_tx_blocking_retry:
     xor     A
     out     (C),A                   ; Switch to register 0
     in      A,(C)                   ; Read control status word
     and     4                       ; check if xmtr empty bit
-    jr      Z,sio_tx_blocking_retry ; if busy, wait
+    jr      Z,_sio_tx_blocking_retry ; if busy, wait
 
     inc     C                       ; switch to data register
     out     (C),B                   ; send the character
-    dec     C                       ; Put c register back to original state
+    pop     BC                      ; Put c register back to original state
     pop     AF
     ret
 

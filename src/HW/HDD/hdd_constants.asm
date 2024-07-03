@@ -95,3 +95,7 @@
 
 ; 1B8 - 1BB = Serial number
 ; 1BC - 1BD = Reserved (00 00)
+
+
+; https://nixhacker.com/explaining-the-magic-of-mbr-and-its/
+; http://elm-chan.org/docs/fat_e.html

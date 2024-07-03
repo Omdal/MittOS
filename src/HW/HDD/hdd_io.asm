@@ -121,39 +121,45 @@ HDDDetectC:
     pop     BC
     ret
 
+;   Start with HL pointing to the address, and C indicating disk data address
+;   Ends with C pointing to disk command address
+HDDSetAddress:
+    push AF
+    inc     C                       ; Error / Feature
+    inc     C                       ; Number of sectors to transfer
+    ld      A, 1
+    out     (C), A
+
+    ld      b, 4
+    scf                             ; Set carry flag to increment address by 1
+_HDDSetAddress_Out:
+    inc     C                       ; Move to sector address LBA0 [0:7]
+    ld      A, (HL)                 ; Get LBA0
+    inc     HL
+    adc     A,  0                   ; Increment address by 1
+    out     (C), A
+    DJNZ    _HDDSetAddress_Out      ; Repeat for LBA1-3
+
+    inc     C                       ; Move to status / Command
+    pop     AF
+    ret
+
 
 HDDReadSector:
     push    AF
     push    BC
-    push    DE
     push    HL
-    push    BC
-    ld      A,  C                   ; Copy disk address to A
-    add     HDDxSts                 ; Move to Status/Command-register
-    ld      C,  A                   ; Set it as the new address
-    dec     C                       ; Move to LBA3 [24:31]
-    ld      B, 0
-    out     (C), B
-    dec     C                       ; Move to LBA2 [16:23]
-    out     (C), B
-    dec     C                       ; Move to LBA1 [8:15]
-    out     (C), B
-    dec     C                       ; Move to LBA0 [0:7]
-    ld      B, 1
-    out     (C), B
-    dec     C                       ; Number of sectors to transfer
-    ld      B, 1
-    out     (C), B
-    ld      C,  A                   ; Move back to Status/Command-register
-    ld      B, HDD_CMD_READ
-    out     (C), B                  ; Issue read command
+    push    BC                      ; Save Disk address for later use
+    call    HDDSetAddress
+    ld      A, HDD_CMD_READ
+    out     (C), A                  ; Issue read command
     call    HDDHasDataReady         ; Wait for the disk to be ready
     pop     BC                      ; Reset to Disk-address
+    ld      HL,DE                   ; Switch to destination address
     ld      B,  0
     inir                            ; Read 256 bytes
     inir                            ; Read 256 bytes
     pop     HL
-    pop     DE
     pop     BC
     pop     AF
     ret

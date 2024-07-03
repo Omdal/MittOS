@@ -64,24 +64,33 @@ Main:
     ld c,DEBUG_LIGHTS
     out (c),b
 
+; Reset HDD count
+    xor A
+    ld  (HDD_COUNT),A
+
+
     call HDDDetectA
     cp 0
     jr  z,  HDDA_Detected
     ld  c,  SERIAL_CW_1
     ld  hl, _string_DISK
     call printstring
-    ld  B, '1'
+    ld  A, '1'
     call sio_tx_blocking
     ld  hl, _string_NOTDET
     call printstring
     jr DETECT_HDDB
 HDDA_Detected:
 ; Initialize the disk
+    call printCRLF
     ld  hl, DISKSECTORA
     ld  a,  HDD1Addr
     call HDDInit
     ld  a,  1
     call printDiskInfo
+
+    ld  c,  HDD1Addr
+    call HDD_DETECT_PARTITIONS
 
 
 DETECT_HDDB:
@@ -91,17 +100,21 @@ DETECT_HDDB:
     ld c,SERIAL_CW_1
     ld  hl, _string_DISK
     call printstring
-    ld  B, '2'
+    ld  A, '2'
     call sio_tx_blocking
     ld  hl, _string_NOTDET
     call printstring
     jr DETECT_HDDC
 HDDB_Detected:
+    call printCRLF
     ld  hl, DISKSECTORA
     ld  a,  HDD2Addr
     call HDDInit
     ld  a,  2
     call printDiskInfo
+
+    ld  c,  HDD2Addr
+    call HDD_DETECT_PARTITIONS
 
 
 DETECT_HDDC:
@@ -111,35 +124,32 @@ DETECT_HDDC:
     ld c,SERIAL_CW_1
     ld  hl, _string_DISK
     call printstring
-    ld  B, '3'
+    ld  A, '3'
     call sio_tx_blocking
     ld  hl, _string_NOTDET
     call printstring
     jr DETECT_HDDD
 HDDC_Detected:
+    call printCRLF
     ld  hl, DISKSECTORA
     ld  a,  HDD3Addr
     call HDDInit
     ld  a,  3
     call printDiskInfo
 
+    ld  c,  HDD3Addr
+    call HDD_DETECT_PARTITIONS
 
 DETECT_HDDD:
 
 
-    ld a, 13
-    call printChar
-    ld a, 10
-    call printChar
-
-
-
-    ; Read boot-sector of HDDA
-    ld  hl, DISKSECTORA
-    ld  c,  HDD1Addr
-
-    call HDDReadSector
-    call printSectorContent
+    call printCRLF
+    call printCRLF
+    ld BC, 00F5h
+    push bc
+    call PrintUint16_t
+    call printCRLF
+    call printCRLF
 
     ld a, 0
 
@@ -171,78 +181,41 @@ EvaluateInput:
     ld  hl, Error
     call printstring
 
-    ld  hl, COMMANDLINE
-    ld  a,(HL)
-    call printAsHex
-    inc hl
-    ld  a,(hl)
-    call printAsHex
-    inc hl
-    ld  a,(hl)
-    call printAsHex
-    inc hl
-    ld  a,(hl)
-    call printAsHex
-    inc hl   
+;    ld  hl, COMMANDLINE
+;    ld  a,(HL)
+;    call printAsHex
+;    inc hl
+;    ld  a,(hl)
+;    call printAsHex
+;    inc hl
+;    ld  a,(hl)
+;    call printAsHex
+;    inc hl
+;    ld  a,(hl)
+;    call printAsHex
+;    inc hl   
     
     ld  hl, COMMANDLINE
     call printstring
 EvaluateInputEnd
-    ld  b, 0Ah
+    ld  a, 0Ah
     call sio_tx_blocking
     jp loop
 
 
     call printAsHex
-    ld b, ' '
+    ld a, ' '
     call sio_tx_blocking
-    inc a
-    ;ld c, SERIAL_CW_1
-    ;call sio_rx_blocking
-    ;call sio_tx_blocking
     jp getbutton
 
 
 INCLUDE 'hw/sio/sio_init.asm'
 INCLUDE 'hw/sio/sio_io.asm'
 INCLUDE 'hw/HDD/hdd_io.asm'
+INCLUDE 'txt/io.asm'
+include 'hw/hdd/mbr.asm'
 
 
-printstring:
-    push af
-    push bc
-    push hl
-printstring_loop:
-    ld  a, (hl)
-    cp  0
-    jr z,printstring_done
-    inc hl
-    ld b,A
-    call sio_tx_blocking
-    jr printstring_loop
-printstring_done:
-    pop hl
-    pop bc
-    pop af
-    ret
-
-printstringLength:
-    push af
-    push bc
-    push de
-    push hl
-printstringLength_loop:
-    ld d,B
-    ld b,(HL)
-    call sio_tx_blocking
-    inc hl
-    ld b,D
-    djnz    printstringLength_loop
-    pop hl
-    pop de
-    pop bc
-    pop af
-    ret
 
 WelcomeMsg:     db 12,0Dh,0Ah,0Dh,0Ah,"MicroBIOS v0.1b by Olav Andr",C3h,A9h," Omdal",0Dh,0Ah,0Dh,0Ah,"Checking for installed disk drives.",0Dh,0Ah,0
 Prompt:         db 0Dh,0Ah,"$>",0
@@ -256,6 +229,7 @@ _string_SERIAL: db " serial number: ",0
 _string_FIRMWR: db " firmware version: ",0
 _string_CAPAC:  db " capacity: ",0
 _string_NOTDET: db " not detected.",0
+
 
 ; Register A contains disk number
 printDiskInfo:
@@ -286,7 +260,7 @@ printDiskInfoFetch:
 ; Disk type
     ld      HL,     _string_DISK
     call    printstring
-    ld      B,      E
+    ld      A,      E
     call    sio_tx_blocking
     ld      HL,     _string_TYPE
     call    printstring
@@ -296,7 +270,7 @@ printDiskInfoFetch:
 ; Serial number
     ld      HL,     _string_DISK
     call    printstring
-    ld      B,      E
+    ld      A,      E
     call    sio_tx_blocking
     ld      HL,     _string_SERIAL
     call    printstring
@@ -306,7 +280,7 @@ printDiskInfoFetch:
 ; Firmware version
     ld      HL,     _string_DISK
     call    printstring
-    ld      B,      E
+    ld      A,      E
     call    sio_tx_blocking
     ld      HL,     _string_FIRMWR
     call    printstring
@@ -316,7 +290,7 @@ printDiskInfoFetch:
 ; Disk capacity
     ld      HL,     _string_DISK
     call    printstring
-    ld      B,      E
+    ld      A,      E
     call    sio_tx_blocking
     ld      HL,     _string_CAPAC
     call    printstring
@@ -342,66 +316,6 @@ printDiskInfoReturn:
 
 
 
-printChar:
-    push bc
-    ld      c,  SERIAL_CW_1
-    ld      b,  a
-    call    sio_tx_blocking
-    pop bc
-    ret
-
-
-
-printAsHex:
-    push af
-    push bc
-    push af
-    ld      c,  SERIAL_CW_1
-    rra
-    rra
-    rra
-    rra
-    call LowNibbleToChar
-    ld b,a
-    call sio_tx_blocking
-    pop af
-    call LowNibbleToChar
-    ld b,a
-    call sio_tx_blocking
-    pop bc
-    pop af
-    ret
-
-; Converts register A to a character representing the hex value of the lower nibble.
-LowNibbleToChar:
-    and 0Fh         ; Isolate lower nibble
-    add A,  '0'     ; Add Zero-character to start at '0'
-    cp  ':'         ; Check if character is greater than '9'
-    ret M           ; Return if character is a number
-    add A,  7       ; Add 7 to change character to a letter
-    ret
-
-CharToNibble:
-    sub A,  '0'
-    jr  C, CharToNibble_Error
-    cp  10
-    jr  C, CharToNibble_Store
-    sub A,  7       ; Convert A-F to 10-15
-    jr  C, CharToNibble_Error   ; Char was between 9 and A (Invalid)
-    cp  10h
-    jr  C, CharToNibble_Error   ; Char is higher than F     TODO: convert a-f too
-CharToNibble_Store:
-    sla B
-    sla B
-    sla B
-    sla B                       ; Shift out upper Nibble
-    or  B                       ; Combine upper and lower Nibble
-    ld  B,  A                   ; Move back to B register
-    xor A
-    ret
-CharToNibble_Error:
-    ld A,   -1      ; Char is not a number
-    ret
 
 
 
@@ -447,14 +361,117 @@ printSectorContentByte:
     org 2000h
 RAMSTART:
 
-
     org 9000h
 COMMANDLINE:
 
     org A000h
 DISKSECTORA:
+    
     org A200h
 DISKSECTORB:
+
+    org A300h
+HDD_COUNT:
+    org A301h
+HDD_CURRENT_HDD:
+    org A302h
+HDD_CURRENT_ID:
+    org A303h
+HDD_CURRENT_OFFSET:
+    org A304h
+HDD_FOLDER0:
+    org A308h
+HDD_FOLDER1:
+    org A30Bh
+HDD_FOLDER2:
+    org A310h
+HDD_FOLDER3:
+    org A314h
+HDD_FOLDER4:
+    org A318h
+HDD_FOLDER5:
+    org A31Bh
+HDD_FOLDER6:
+    org A320h
+HDD_FOLDER7:
+    org A324h
+HDD_FOLDER8:
+    org A328h
+HDD_FOLDER9:
+    org A32Bh
+HDD_FOLDERA:
+    org A330h
+HDD_FOLDERB:
+    org A334h
+HDD_FOLDERC:
+    org A338h
+HDD_FOLDERD:
+    org A33Bh
+HDD_FOLDERE:
+    org A340h
+HDD_FOLDERF:
+    org A344h
+HDD_DISKA:
+    org A348h
+HDD_DISKB:
+    org A34Bh
+HDD_DISKC:
+    org A350h
+HDD_DISKD:
+    org A354h
+HDD_DISKE:
+    org A358h
+HDD_DISKF:
+    org A35Bh
+HDD_DISKG:
+    org A360h
+HDD_DISKH:
+    org A364h
+HDD_DISKI:
+    org A368h
+HDD_DISKJ:
+    org A36Bh
+HDD_DISKK:
+    org A370h
+HDD_DISKL:
+    org A374h
+HDD_DISKM:
+    org A378h
+HDD_DISKN:
+    org A37Bh
+HDD_DISKO:
+    org A380h
+HDD_DISKP:
+    org A384h
+HDD_DISKQ:
+    org A388h
+HDD_DISKR:
+    org A38Bh
+HDD_DISKS:
+    org A390h
+HDD_DISKT:
+    org A394h
+HDD_DISKU:
+    org A398h
+HDD_DISKV:
+    org A39Bh
+HDD_DISKW:
+    org A3A0h
+HDD_DISKX:
+    org A3A4h
+HDD_DISKY:
+    org A3A8h
+HDD_DISKZ:
+    org A3ABh
+    org A3B0h
+HDD_TYPE:
+    org A3D0h
+HDD_PATH:
+
+
+    org A400h
+SCRATCHPAD:
+
 
 
     END
