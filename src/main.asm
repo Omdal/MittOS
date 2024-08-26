@@ -145,9 +145,11 @@ DETECT_HDDD:
 
     call printCRLF
     call printCRLF
-    ld BC, 00F5h
+    ld BC, EE00h
     push bc
-    call PrintUint16_t
+    ld BC, 306Bh
+    push bc
+    call PrintUint32_t
     call printCRLF
     call printCRLF
 

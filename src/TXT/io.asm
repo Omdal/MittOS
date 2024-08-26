@@ -105,6 +105,23 @@ CharToNibble_Error:
     ret
 
 
+
+
+_DecimalCalc2byte:
+    LD C, 10    ; Div by 10
+    LD D, 0     ; Reset calculation
+_DecimalCalcNbyte:
+    LD E, (HL)  ; High byte
+    Call _Divide
+    LD (HL), E  ; Save high byte
+    INC HL
+    LD E, (HL)  ; Load low byte
+    Call _Divide
+    LD (HL), E  ; Save low byte
+    INC HL
+    ret
+
+
 PrintUint16_t:
     ex af, af'
     exx
@@ -113,64 +130,28 @@ PrintUint16_t:
     pop DE
     ld (SCRATCHPAD+2), DE ; 16bit number 
 
-    LD HL, SCRATCHPAD +2
-    LD E, (HL)     ; High byte
-    LD C, 10    ; Div by 10
-    LD D, 0     ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
+    LD HL, SCRATCHPAD+2
+    call _DecimalCalc2byte
     LD HL, SCRATCHPAD +8
     LD (HL), D ; Save modulus as last number
 
     LD HL, SCRATCHPAD +2
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
+    call _DecimalCalc2byte
     LD HL, SCRATCHPAD +7
     LD (HL), D ; Save modulus as last number
 
     LD HL, SCRATCHPAD +2
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
+    call _DecimalCalc2byte
     LD HL, SCRATCHPAD +6
     LD (HL), D ; Save modulus as last number
-    LD HL, SCRATCHPAD +2
 
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
     LD HL, SCRATCHPAD +5
     LD (HL), D ; Save modulus as last number
-    LD HL, SCRATCHPAD +2
 
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
     LD HL, SCRATCHPAD +4
     LD (HL), D ; Save modulus as last number
 
@@ -215,82 +196,71 @@ PrintUint32_t:
     pop DE
     ld (SCRATCHPAD), DE ; Return address
     pop DE
-    ld (SCRATCHPAD+2), DE ; 32bit number 
-    pop DE
     ld (SCRATCHPAD+4), DE ; 32bit number 
+    pop DE
+    ld (SCRATCHPAD+2), DE ; 32bit number 
 
 
     LD HL, SCRATCHPAD +2
-    LD E, (HL)  ; 1st byte
-    LD C, 10    ; Div by 10
-    LD D, 0     ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save 1st byte
-    INC HL
-    LD E, (HL) ; Load 2nd byte
-    Call _Divide
-    LD (HL), E ; Save 2nd byte
-    INC HL
-    LD E, (HL) ; Load 3rd byte
-    Call _Divide
-    LD (HL), E ; Save 3rd byte
-    INC HL
-    LD E, (HL) ; Load 4th byte
-    Call _Divide
-    LD (HL), E ; Save 4th byte
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
     LD HL, SCRATCHPAD +15
-    LD (HL), D
+    LD (HL), D ; Save modulus as last number
 
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
+    LD HL, SCRATCHPAD +14
+    LD (HL), D ; Save modulus as last number
+
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
+    LD HL, SCRATCHPAD +13
+    LD (HL), D ; Save modulus as last number
+
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
+    LD HL, SCRATCHPAD +12
+    LD (HL), D ; Save modulus as last number
+
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
+    LD HL, SCRATCHPAD +11
+    LD (HL), D ; Save modulus as last number
+
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
+    LD HL, SCRATCHPAD +10
+    LD (HL), D ; Save modulus as last number
+
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
+    LD HL, SCRATCHPAD +9
+    LD (HL), D ; Save modulus as last number
+
+    LD HL, SCRATCHPAD +2
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
     LD HL, SCRATCHPAD +8
     LD (HL), D ; Save modulus as last number
 
     LD HL, SCRATCHPAD +2
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
     LD HL, SCRATCHPAD +7
     LD (HL), D ; Save modulus as last number
 
     LD HL, SCRATCHPAD +2
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
+    call _DecimalCalc2byte
+    call _DecimalCalcNbyte
     LD HL, SCRATCHPAD +6
     LD (HL), D ; Save modulus as last number
-    LD HL, SCRATCHPAD +2
 
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
-    LD HL, SCRATCHPAD +5
-    LD (HL), D ; Save modulus as last number
-    LD HL, SCRATCHPAD +2
-
-    LD E, (HL) ; High byte
-    LD D, 0              ; Reset calculation
-    Call _Divide
-    LD (HL), E ; Save high byte
-    INC HL
-    LD E, (HL) ; Load low byte
-    Call _Divide
-    LD (HL), E ; Save low byte
-    LD HL, SCRATCHPAD +4
-    LD (HL), D ; Save modulus as last number
 
     ld a,(HL)
     add a, '0'
@@ -316,6 +286,30 @@ PrintUint32_t:
     add a, '0'
     call printChar
 
+    INC HL
+    ld a,(HL)
+    add a, '0'
+    call printChar
+
+    INC HL
+    ld a,(HL)
+    add a, '0'
+    call printChar
+
+    INC HL
+    ld a,(HL)
+    add a, '0'
+    call printChar
+
+    INC HL
+    ld a,(HL)
+    add a, '0'
+    call printChar
+
+    INC HL
+    ld a,(HL)
+    add a, '0'
+    call printChar
 
     ld DE, (SCRATCHPAD) ; Load return address
     push DE             ; Return it to the stack
