@@ -1,6 +1,6 @@
 HDD1Addr    EQU 10h
 HDD2Addr    EQU 20h
-HDD3Addr    EQU 30h
+HDD3Addr    EQU 18h
 
 HDDxDta     EQU 0  ; Data port
 HDDxErr     EQU 1  ; Error / Feature
