@@ -89,6 +89,10 @@ HDDA_Detected:
     ld  a,  1
     call printDiskInfo
 
+    ld hl, DISKSECTORA
+    call printsectorContent
+
+
     ld  c,  HDD1Addr
     call HDD_DETECT_PARTITIONS
 
@@ -154,6 +158,33 @@ DETECT_HDDD:
     call printCRLF
 
     ld a, 0
+;----------------------------------------------------------
+    ld hl, DISKSECTORA
+    call printsectorContent
+
+    ld hl, HDD_FOLDER0
+    push hl
+    ld a, 0x00  ;LSB
+    ld (hl), a
+    inc hl
+    ld a, 0x08
+    ld (hl), a
+    inc hl
+    ld a, 0x00
+    ld (hl), a
+    inc hl
+    ld a, 0xE0  ;MSB
+    ld (hl), a
+    pop hl
+    ld de, DISKSECTORA
+    ld c, HDD1Addr
+    call HDDReadSector
+
+    ld hl, DISKSECTORA
+    call printsectorContent
+
+    ld hl, HDD_FOLDER0
+    call printSectorContent
 
 loop:
     ; Print command prompt

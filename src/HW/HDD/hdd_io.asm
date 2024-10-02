@@ -5,14 +5,14 @@ HDD3Addr    EQU 18h
 HDDxDta     EQU 0  ; Data port
 HDDxErr     EQU 1  ; Error / Feature
 HDDxLen     EQU 2  ; Number of sectors to transfer
-HDDxLBA0    EQU 3  ; Sector address LBA0 [0:7]
-HDDxLBA1    EQU 4  ; Sector address LBA1 [8:15] 
-HDDxLBA2    EQU 5  ; Sector address LBA2 [16:23] 
-HDDxLBA3    EQU 6  ; Sector address LBA3 [24:31]
+HDDxLBA0    EQU 3  ; Sector address LBA0 [0:7]     sector
+HDDxLBA1    EQU 4  ; Sector address LBA1 [8:15]    cyl-l
+HDDxLBA2    EQU 5  ; Sector address LBA2 [16:23]   cyl-h
+HDDxLBA3    EQU 6  ; Sector address LBA3 [24:31]   head
 HDDxSts     EQU 7  ; Status / Command
 
 HDD_CMD_IDENTIFY_DRIVE  EQU ECh
-HDD_CMD_READ            EQU 21h
+HDD_CMD_READ            EQU 21h ; 20h or 21h ????
 
 HDDWaitForReady:
     IN      A,  (C)
@@ -56,6 +56,10 @@ HDDInit:
     LD      A,      1
     OUT     (C),    A           ; Command 1 - 8-bit mode
     LD      C,      B
+    dec     c                   ; Try without
+    ld      a,      E0h         ; this LBA
+    out     (c),    a           ; mode command
+    inc     c
     LD      A,      EFh
     OUT     (C),    A           ; Set command
     POP     BC
@@ -121,28 +125,30 @@ HDDDetectC:
     pop     BC
     ret
 
-;   Start with HL pointing to the address, and C indicating disk data address
+;   HL pointing to the LBA address (LSB first, 4 bytes)
+;   C indicating disk data-port address
 ;   Ends with C pointing to disk command address
 HDDSetAddress:
-    push AF
-    inc     C                       ; Error / Feature
-    inc     C                       ; Number of sectors to transfer
-    ld      A, 1
-    out     (C), A
-
-    ld      b, 4
-    scf                             ; Set carry flag to increment address by 1
+    PUSH    AF
+    INC     C                       ; Error / Feature
+    INC     C                       ; Number of sectors to transfer
+    LD      A, 1                    ; Read 1 sector
+    LD      B, 4                    ; Repeat 4 times
+;    scf                             ; Set carry flag to increment address by 1
 _HDDSetAddress_Out:
-    inc     C                       ; Move to sector address LBA0 [0:7]
-    ld      A, (HL)                 ; Get LBA0
-    inc     HL
-    adc     A,  0                   ; Increment address by 1
-    out     (C), A
+    OUT     (C), A                  ; Write to CF-card
+    INC     C                       ; Move to sector address LBA0 [0:7]
+    LD      A, (HL)                 ; Get LBA0
+    INC     HL
+;    adc     A,  0                   ; Increment address by 1
     DJNZ    _HDDSetAddress_Out      ; Repeat for LBA1-3
-
-    inc     C                       ; Move to status / Command
-    pop     AF
-    ret
+    AND     0Fh                     ; After 3 low bytes, set LBA mode
+    OR      E0h
+    OUT     (C), A                  ; Write the modified high byte
+    INC     C                       ; Move to status / Command
+    CALL    HDDWaitForReady         ; Wait for the card to handle the address
+    POP     AF
+    RET
 
 
 HDDReadSector:
@@ -151,6 +157,7 @@ HDDReadSector:
     push    HL
     push    BC                      ; Save Disk address for later use
     call    HDDSetAddress
+    call    HDDWaitForReady
     ld      A, HDD_CMD_READ
     out     (C), A                  ; Issue read command
     call    HDDHasDataReady         ; Wait for the disk to be ready
@@ -196,3 +203,36 @@ HDDReadSector:
 ;0000 0000 0000 0000 0000 0000 0000 0000
 ;0000 0000 0000 0000 0000 0000 0000 0000
 ;0000 0000 0000 0000 0000 0000 0000 9aa5
+
+;848A 3C8D 0000 0010 0000 0240 003F 
+;00EE 6C00 0000
+;2020 2020 2043 505A 3131 3032 3136 3034 3539 3231
+;0002 0002 0004
+;4844 5820 372E 3038
+;5361 6E44 6973 6B20 5344 4346 4853 4E4A 432D 3030 3847 2020 2020 2020 2020 2020 2020 2020 2020 2020
+;8001 0000
+;2300
+;-50- 0000 0200 0000 0007 
+; Cylinders: 3C8D
+; Heads:     0010
+; Sectors pr. track: 003F
+; Capacity: 6B30 00EE
+; 0100 6C00 00EE 0000 0007 0003 0078 0078 0078 0078 4020 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 7020 740C 4660 7020 0404 4040 003F 0000 0000 0000 FFFE 0000 0000 0000 0000 0000 0000 0000 6C00 00EE 0000 0000 0000 0001 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 81F4 0000 0000 7082 0000 8055 0000 6000 0000 0001 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+;848A 01EA 0000 0004 0000 0200 0020
+;0000 F500 0000
+;5830 3331 3220 3230 3034 3131 3233 3036 3036 3536
+;0001 0001 0004
+;5265 7620 332E 3030
+;4869 7461 6368 6920 5858 4D32 2E33 2E30 2020 2020 2020 2020 2020 2020 2020 2020 2020 2020 2020 2020
+;0001 0000
+;0200
+;-50- 0000 0200 0000 0001
+;01EA 0004 0020 F500 0000 0100 F500 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+
+
+; C = LBA / (HPC * SPT)         LBA / ( ?? * 3F)
+; H = (LBA / SPT) mod HPC       (LBA / 3F) % ??
+; S = (LBA % SPT) +1            (LBA % 3F) +1
+
+; 0800 % 3F
