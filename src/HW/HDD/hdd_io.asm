@@ -43,7 +43,7 @@ HDDReadChunkRepeat:
     RET
 
 
-
+;   A   :   HDDxData register address
 HDDInit:
     PUSH    BC
     ADD     HDDxSts             ; Switch to Status/Command register
@@ -56,10 +56,6 @@ HDDInit:
     LD      A,      1
     OUT     (C),    A           ; Command 1 - 8-bit mode
     LD      C,      B
-    dec     c                   ; Try without
-    ld      a,      E0h         ; this LBA
-    out     (c),    a           ; mode command
-    inc     c
     LD      A,      EFh
     OUT     (C),    A           ; Set command
     POP     BC
@@ -150,7 +146,9 @@ _HDDSetAddress_Out:
     POP     AF
     RET
 
-
+;   C   :   HDD_Disk_Data address
+;   DE  :   DEstination address
+;   HL  :   Pointer to HDD sector ID
 HDDReadSector:
     push    AF
     push    BC

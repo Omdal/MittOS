@@ -1,4 +1,5 @@
 INCLUDE 'hw/hwmap.asm'
+INCLUDE 'hw/hdd/hdd_memloc.asm'
 
 RST0    EQU 11000111b
 RST1    EQU 11001111b
@@ -64,21 +65,15 @@ Main:
     ld c,DEBUG_LIGHTS
     out (c),b
 
-; Reset HDD count
-    xor A
-    ld  (HDD_COUNT),A
+; Reset HDD location data
+    call FAT_UnmountAll
 
-
+; Check first drive
     call HDDDetectA
     cp 0
     jr  z,  HDDA_Detected
-    ld  c,  SERIAL_CW_1
-    ld  hl, _string_DISK
-    call printstring
     ld  A, '1'
-    call sio_tx_blocking
-    ld  hl, _string_NOTDET
-    call printstring
+    call DiskXNotDetected
     jr DETECT_HDDB
 HDDA_Detected:
 ; Initialize the disk
@@ -89,11 +84,8 @@ HDDA_Detected:
     ld  a,  1
     call printDiskInfo
 
-    ld hl, DISKSECTORA
-    call printsectorContent
-
-
     ld  c,  HDD1Addr
+    call HDD_READ_MBR
     call HDD_DETECT_PARTITIONS
 
 
@@ -101,13 +93,8 @@ DETECT_HDDB:
     call HDDDetectB
     cp 0
     jr z,HDDB_Detected
-    ld c,SERIAL_CW_1
-    ld  hl, _string_DISK
-    call printstring
     ld  A, '2'
-    call sio_tx_blocking
-    ld  hl, _string_NOTDET
-    call printstring
+    call DiskXNotDetected
     jr DETECT_HDDC
 HDDB_Detected:
     call printCRLF
@@ -118,6 +105,7 @@ HDDB_Detected:
     call printDiskInfo
 
     ld  c,  HDD2Addr
+    call HDD_READ_MBR
     call HDD_DETECT_PARTITIONS
 
 
@@ -125,13 +113,8 @@ DETECT_HDDC:
     call HDDDetectC
     cp 0
     jr z,HDDC_Detected
-    ld c,SERIAL_CW_1
-    ld  hl, _string_DISK
-    call printstring
     ld  A, '3'
-    call sio_tx_blocking
-    ld  hl, _string_NOTDET
-    call printstring
+    call DiskXNotDetected
     jr DETECT_HDDD
 HDDC_Detected:
     call printCRLF
@@ -142,49 +125,50 @@ HDDC_Detected:
     call printDiskInfo
 
     ld  c,  HDD3Addr
+    call HDD_READ_MBR
     call HDD_DETECT_PARTITIONS
 
 DETECT_HDDD:
 
 
-    call printCRLF
-    call printCRLF
-    ld BC, EE00h
-    push bc
-    ld BC, 306Bh
-    push bc
-    call PrintUint32_t
-    call printCRLF
-    call printCRLF
+    ;call printCRLF
+    ;call printCRLF
+    ;ld BC, EE00h
+    ;push bc
+    ;ld BC, 306Bh
+    ;push bc
+    ;call PrintUint32_t
+    ;call printCRLF
+    ;call printCRLF
 
-    ld a, 0
+    ;ld a, 0
 ;----------------------------------------------------------
-    ld hl, DISKSECTORA
-    call printsectorContent
+    ;ld hl, DISKSECTORA
+    ;call printsectorContent
 
-    ld hl, HDD_FOLDER0
-    push hl
-    ld a, 0x00  ;LSB
-    ld (hl), a
-    inc hl
-    ld a, 0x08
-    ld (hl), a
-    inc hl
-    ld a, 0x00
-    ld (hl), a
-    inc hl
-    ld a, 0xE0  ;MSB
-    ld (hl), a
-    pop hl
-    ld de, DISKSECTORA
-    ld c, HDD1Addr
-    call HDDReadSector
+    ;ld hl, HDD_FOLDER0
+    ;push hl
+    ;ld a, 0x00  ;LSB
+    ;ld (hl), a
+    ;inc hl
+    ;ld a, 0x08
+    ;ld (hl), a
+    ;inc hl
+    ;ld a, 0x00
+    ;ld (hl), a
+    ;inc hl
+    ;ld a, 0xE0  ;MSB
+    ;ld (hl), a
+    ;pop hl
+    ;ld de, DISKSECTORA
+    ;ld c, HDD1Addr
+    ;call HDDReadSector
 
-    ld hl, DISKSECTORA
-    call printsectorContent
+    ;ld hl, DISKSECTORA
+    ;call printsectorContent
 
-    ld hl, HDD_FOLDER0
-    call printSectorContent
+    ;ld hl, HDD_DISKA
+    ;call printSectorContent
 
 loop:
     ; Print command prompt
@@ -247,6 +231,7 @@ INCLUDE 'hw/sio/sio_io.asm'
 INCLUDE 'hw/HDD/hdd_io.asm'
 INCLUDE 'txt/io.asm'
 include 'hw/hdd/mbr.asm'
+INCLUDE 'hw/hdd/fat.asm'
 
 
 
@@ -263,6 +248,17 @@ _string_FIRMWR: db " firmware version: ",0
 _string_CAPAC:  db " capacity: ",0
 _string_NOTDET: db " not detected.",0
 
+
+; register A contains human readable disk number
+DiskXNotDetected:
+    ld  c,  SERIAL_CW_1
+    call printCRLF
+    ld  hl, _string_DISK
+    call printstring
+    call sio_tx_blocking
+    ld  hl, _string_NOTDET
+    call printstring
+    ret
 
 ; Register A contains disk number
 printDiskInfo:
@@ -361,7 +357,7 @@ printSectorContent:
     call printChar
     ld a, 10
     call printChar
-    ld  hl, DISKSECTORA
+    ;ld  hl, DISKSECTORA
     ld  c, 32
 printSectorContentLine:
     ld  a, 32
@@ -403,108 +399,9 @@ DISKSECTORA:
     org A200h
 DISKSECTORB:
 
-    org A300h
-HDD_COUNT:
-    org A301h
-HDD_CURRENT_HDD:
-    org A302h
-HDD_CURRENT_ID:
-    org A303h
-HDD_CURRENT_OFFSET:
-    org A304h
-HDD_FOLDER0:
-    org A308h
-HDD_FOLDER1:
-    org A30Bh
-HDD_FOLDER2:
-    org A310h
-HDD_FOLDER3:
-    org A314h
-HDD_FOLDER4:
-    org A318h
-HDD_FOLDER5:
-    org A31Bh
-HDD_FOLDER6:
-    org A320h
-HDD_FOLDER7:
-    org A324h
-HDD_FOLDER8:
-    org A328h
-HDD_FOLDER9:
-    org A32Bh
-HDD_FOLDERA:
-    org A330h
-HDD_FOLDERB:
-    org A334h
-HDD_FOLDERC:
-    org A338h
-HDD_FOLDERD:
-    org A33Bh
-HDD_FOLDERE:
-    org A340h
-HDD_FOLDERF:
-    org A344h
-HDD_DISKA:
-    org A348h
-HDD_DISKB:
-    org A34Bh
-HDD_DISKC:
-    org A350h
-HDD_DISKD:
-    org A354h
-HDD_DISKE:
-    org A358h
-HDD_DISKF:
-    org A35Bh
-HDD_DISKG:
-    org A360h
-HDD_DISKH:
-    org A364h
-HDD_DISKI:
-    org A368h
-HDD_DISKJ:
-    org A36Bh
-HDD_DISKK:
-    org A370h
-HDD_DISKL:
-    org A374h
-HDD_DISKM:
-    org A378h
-HDD_DISKN:
-    org A37Bh
-HDD_DISKO:
-    org A380h
-HDD_DISKP:
-    org A384h
-HDD_DISKQ:
-    org A388h
-HDD_DISKR:
-    org A38Bh
-HDD_DISKS:
-    org A390h
-HDD_DISKT:
-    org A394h
-HDD_DISKU:
-    org A398h
-HDD_DISKV:
-    org A39Bh
-HDD_DISKW:
-    org A3A0h
-HDD_DISKX:
-    org A3A4h
-HDD_DISKY:
-    org A3A8h
-HDD_DISKZ:
-    org A3ABh
-    org A3B0h
-HDD_TYPE:
-    org A3D0h
-HDD_PATH:
-
-
-    org A400h
+    org A500h
 SCRATCHPAD:
 
-
+include 'hw/HDD/hdd_constants.asm'
 
     END

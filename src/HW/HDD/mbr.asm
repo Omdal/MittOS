@@ -68,17 +68,25 @@ MBR_TYPE_EFISYSTEMPART  EQU EFh
 MBR_TYPE_VMWAREFILESYST EQU FBh
 MBR_TYPE_VMWARESWAP     EQU FCh
 
+;   C   :   HDD_Disk_Data address
+HDD_READ_MBR:
+    push DE
+    push HL
+
+    ; Read the boot-sector
+    ld  DE, DISKSECTORA                         ; Disk scratchpad
+    ld  HL, _HDD_DETECT_PARTITIONS_BOOTSECTOR_  ; 0,0,0,0
+    call HDDReadSector
+
+    pop HL
+    pop DE
+    ret
+
 HDD_DETECT_PARTITIONS:
     push AF
     push BC
     push DE
     push HL
-
-    ; Read boot-sector of HDDA
-    ld  DE, DISKSECTORA
-    ld  hl, _HDD_DETECT_PARTITIONS_BOOTSECTOR_
-
-    call HDDReadSector                              ; Read MBR
 
     ld  hl, DISKSECTORA + MBR_SIGNATURE             ; Check signature
     ld  a,  (HL)
@@ -101,11 +109,12 @@ _HDD_DETECT_PARTITIONS_ERROR_:
 _HDD_DETECT_PARTITIONS_OK_:                         ; Signature OK
 
     ld  de, 0010h
-    ld  hl, DISKSECTORA + MBR_PARTITION1 + MBR_TYPE
+    ld  hl, DISKSECTORA + MBR_PARTITION1 + MBR_TYPE - 0010h
     ld  b,4
 _HDD_DETECT_PARTITIONS_CHECK_PARTITION_:
-    ld  a, (HL)
     add HL, DE
+    push HL
+    ld  a, (HL)
 
     cp  MBR_TYPE_EMPTY
     jr  z, _HDD_DETECT_PARTITIONS_TYPE_EMPTY_
@@ -131,42 +140,35 @@ _HDD_DETECT_PARTITIONS_CHECK_PARTITION_:
     jr  z, _HDD_DETECT_PARTITIONS_TYPE_MSEXTENDED_ 
 
     ; Unknown partition
-    push HL
     jr _HDD_DETECT_PARTITIONS_NEXT_ ; Unknown
 
 _HDD_DETECT_PARTITIONS_TYPE_FAT12_:
-    push HL
     call _HDD_DETECT_PARTITIONS_MESSAGE_
     ld  hl, _HDD_DETECT_PARTITIONS_TYPE_FAT12_MESSAGE_
     call printstring
     jr _HDD_DETECT_PARTITIONS_NEXT_
 
 _HDD_DETECT_PARTITIONS_TYPE_FAT16_:
-    push HL
     call _HDD_DETECT_PARTITIONS_MESSAGE_
     ld  hl, _HDD_DETECT_PARTITIONS_TYPE_FAT16_MESSAGE_
     call printstring
-    jr _HDD_DETECT_PARTITIONS_NEXT_
+    jr _HDD_DETECT_PARTITIONS_MOUNT_
 
 _HDD_DETECT_PARTITIONS_TYPE_FAT32_:
-    push HL
     call _HDD_DETECT_PARTITIONS_MESSAGE_
     ld  hl, _HDD_DETECT_PARTITIONS_TYPE_FAT32_MESSAGE_
     call printstring
-    jr _HDD_DETECT_PARTITIONS_NEXT_
+    jr _HDD_DETECT_PARTITIONS_MOUNT_
 
 _HDD_DETECT_PARTITIONS_TYPE_MSEXTENDED_:
-    push HL
     ; read partition location, then scan again
     call _HDD_DETECT_PARTITIONS_MESSAGE_
     ld  hl, _HDD_DETECT_PARTITIONS_TYPE_MSEXTENDED_MESSAGE_
     call printstring
-
     jr _HDD_DETECT_PARTITIONS_NEXT_
 
 _HDD_DETECT_PARTITIONS_TYPE_EMPTY_:
-    push HL
-_HDD_DETECT_PARTITIONS_NEXT_;
+_HDD_DETECT_PARTITIONS_NEXT_:
     pop HL
     DJNZ _HDD_DETECT_PARTITIONS_CHECK_PARTITION_
     pop HL
@@ -175,8 +177,50 @@ _HDD_DETECT_PARTITIONS_NEXT_;
     pop AF
     ret
 
-_HDD_DETECT_PARTITIONS_MESSAGE_
+_HDD_DETECT_PARTITIONS_MOUNT_:
+    ; A contains partition type
+    ; B contains partition index (Inverted)
+    ; C conatins HDD address
+
+    pop hl      ; Refresh source-address
     push hl
+    push de
+    push bc
+
+    push hl                     ; Push source-address
+    call FAT_FIRST_UNMOUNTED    ; Get first available mounting slot (HL)
+
+    ld (HL), A                  ; Save partition type
+    inc HL
+    ld (HL), C                  ; Save HDD-IO address
+    inc HL
+    ld C,D                      ; Move drive index to C
+    pop de                      ; Pop source-address to DE
+    ld A, E                     ; Move source-pointer from partition
+    add A, 4                    ; type to first address byte
+    ld E, A    
+    ld b, 4                     ; Copy four bytes
+_HDD_DETECT_PARTITIONS_MOUNT_SAVE_ADDRESS_:
+    LD A, (DE)
+    LD (HL),A
+    inc HL
+    inc DE
+    djnz _HDD_DETECT_PARTITIONS_MOUNT_SAVE_ADDRESS_
+
+    ld HL, _HDD_DETECT_PARTITIONS_MOUNTED_MESSAGE_
+    call printstring
+    ld a, C
+    add a, 'A'
+    call printChar
+
+    pop bc
+    pop de
+    jr _HDD_DETECT_PARTITIONS_NEXT_
+
+
+_HDD_DETECT_PARTITIONS_MESSAGE_:
+    push hl
+    push af
     ld  HL, _HDD_DETECT_PARTITIONS_DETECTED_MESSAGE_
     call printstring
     ld  a, '4'
@@ -184,26 +228,8 @@ _HDD_DETECT_PARTITIONS_MESSAGE_
     call printChar
     ld  HL, _HDD_DETECT_PARTITIONS_OF_TYPE_MESSAGE_
     call printstring
+    pop af
     pop hl
-    ret
-
-_HDD_DETECT_PARTITIONS_MOUNT_
-    ; ---- Add the partition to the disk list ----
-    push DE
-    ld  A, (HDD_COUNT)
-    inc A
-    ld  (HDD_COUNT), A
-    ld  D, 0
-    sla A
-    sla A
-    ;adc D, 0
-    ld  E, A
-
-
-
-;64 + HDD_COUNT
-
-    pop DE
     ret
 
 
