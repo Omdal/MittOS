@@ -170,6 +170,25 @@ DETECT_HDDD:
     ;ld hl, HDD_DISKA
     ;call printSectorContent
 
+    ld A, '['
+    call FAT_LOAD_DRIVE
+
+    ld A, 'N'
+    call FAT_LOAD_DRIVE
+
+
+    ld A, 'A'
+    call FAT_LOAD_DRIVE
+
+    ld A, 'B'
+    call FAT_LOAD_DRIVE
+
+        ld A, 2
+    call FAT_LOAD_DRIVE
+
+        ld A, 'd'
+    call FAT_LOAD_DRIVE
+
 loop:
     ; Print command prompt
     ld hl, PROMPT
