@@ -16,6 +16,8 @@ _printstring_done:
     pop af
     ret
 
+; HL: Pointer to string
+; B: Number of characters
 printstringLength:
     push af
     push bc

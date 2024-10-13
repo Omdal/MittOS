@@ -170,24 +170,43 @@ DETECT_HDDD:
     ;ld hl, HDD_DISKA
     ;call printSectorContent
 
-    ld A, '['
-    call FAT_LOAD_DRIVE
+;    ld A, '['
+;    call FAT_LOAD_DRIVE
 
-    ld A, 'N'
-    call FAT_LOAD_DRIVE
+;    ld A, 'N'
+;    call FAT_LOAD_DRIVE
 
 
-    ld A, 'A'
-    call FAT_LOAD_DRIVE
+;    ld A, 'A'
+;    call FAT_LOAD_DRIVE
 
-    ld A, 'B'
-    call FAT_LOAD_DRIVE
+;    ld A, 'B'
+;    call FAT_LOAD_DRIVE
 
-        ld A, 2
-    call FAT_LOAD_DRIVE
+;    ld A, 2
+;    call FAT_LOAD_DRIVE
 
-        ld A, 'd'
-    call FAT_LOAD_DRIVE
+;    ld A, 'd'
+;    call FAT_LOAD_DRIVE
+
+    call printCRLF
+
+    call printCRLF
+    ld a, 0
+    call FAT_LOAD_ROOT_FOLDER
+    call FAT_LIST_FILES
+
+    call printCRLF
+    ld a, 1
+    call FAT_LOAD_ROOT_FOLDER
+    call FAT_LIST_FILES
+
+    call printCRLF
+    ld a, 2
+    call FAT_LOAD_ROOT_FOLDER
+    call FAT_LIST_FILES
+
+
 
 loop:
     ; Print command prompt
@@ -411,12 +430,6 @@ RAMSTART:
 
     org 9000h
 COMMANDLINE:
-
-    org A000h
-DISKSECTORA:
-    
-    org A200h
-DISKSECTORB:
 
     org A500h
 SCRATCHPAD:
