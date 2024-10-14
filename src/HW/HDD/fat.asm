@@ -178,20 +178,16 @@ _FAT_LOCATE_DRIVE_DATA_:
     POP AF
     RET
 
+; DE: Destination pointer
 FAT_LOAD_CURRENT_LOCATION:
-    PUSH AF
     PUSH BC
-    PUSH DE
     PUSH HL
-    LD DE, DISKSECTORA
     LD HL, HDD_CURRENT_LOCATION +1
     LD C, (HL)
     INC HL
     CALL HDDReadSector
     POP HL
-    POP DE
     POP BC
-    POP AF
     RET
 
 ; HL = New location data
@@ -247,17 +243,22 @@ FAT_LOAD_ROOT_FOLDER:
     ; Save root address
     CALL _FAT_LOCATE_DRIVE_DATA_
     CALL FAT_SET_CURRENT_LOCATION
-    
 
     ; Set the root folder to FAT table
     LD DE, HDD_ROOT_FOLDER
     CALL FAT_COPY_CURRENT_LOCATION
 
     ; Load the FAT table
+    LD DE, DISKSECTORA
     CALL FAT_LOAD_CURRENT_LOCATION
+    ; Save number of sectors per cluster for the current drive
+    LD DE, HDD_SECTORS_PER_CLUSTER
+    LD HL, FAT_SECTORS_PER_CLUSTER
+    LD A, (HL)
+    LD (DE), A
     ; Add reserved sectors
     LD DE, HDD_ROOT_FOLDER + 2
-    LD HL, FAT_RESERVED_SECTORS
+    INC HL ;FAT_RESERVED_SECTORS
     LD A, (DE)
     ADD A, (HL)
     LD (DE), A  
@@ -306,7 +307,11 @@ _FAT_LOCATE_ROOT_FOLDER_ADD_:
 ; Set root-folder as current location
     LD HL, HDD_ROOT_FOLDER
     CALL FAT_SET_CURRENT_LOCATION
+; Set the root folder to current folder
+    LD HL, HDD_FOLDER_LOCATION
+    CALL FAT_COPY_CURRENT_LOCATION
 ; Read folder contents
+    LD DE, DISKSECTORA
     CALL FAT_LOAD_CURRENT_LOCATION
 
     POP HL
@@ -323,15 +328,17 @@ FAT_LIST_FILES:
     PUSH HL
 
     ; Load the data at the current location
+    LD DE, DISKSECTORA
     CALL FAT_LOAD_CURRENT_LOCATION
     ; Backup the location for later use
-    LD DE, HDD_TEMP_LOCATION
+    LD DE, HDD_FOLDER_LOCATION
     CALL FAT_COPY_CURRENT_LOCATION
 
 ;    LD HL, DISKSECTORA
 ;    CALL printSectorContent
 
 FAT_LIST_FILES_LOOP_SECTOR:
+    LD DE, DISKSECTORA
     CALL FAT_LOAD_CURRENT_LOCATION
     LD HL, DISKSECTORA
     LD DE, FAT_DIR_DATASIZE
@@ -349,7 +356,7 @@ FAT_LIST_FILES_LOOP:
     JR FAT_LIST_FILES_LOOP_SECTOR
 
 _FAT_LIST_FILES_END_:
-    LD HL, HDD_TEMP_LOCATION
+    LD HL, HDD_FOLDER_LOCATION
     CALL FAT_SET_CURRENT_LOCATION
     POP HL
     POP DE
@@ -459,6 +466,90 @@ _FAT_PRINT_DIR_LINE_END_:
     POP AF
     RET    
 
+; DE: Destination
+; A: File index in current sector
+FAT_LOAD_FILE:
+    PUSH AF
+    PUSH BC
+    PUSH DE
+    PUSH HL
+
+    PUSH DE ; -For later use
+
+    ; Start in the root folder
+    LD HL, HDD_FOLDER_LOCATION
+    CALL FAT_SET_CURRENT_LOCATION
+
+    ; Locate the correct offset
+    LD C, FAT_DIR_DATASIZE
+    LD HL, DISKSECTORA
+    CALL MUL ; Jump to the index
+
+    ; Store base cluster
+    PUSH HL
+    LD DE, FAT_DIR_FIRST_CLUSTER_LOW
+    ADD HL, DE
+    LD DE, HDD_TEMP_CLUSTER
+    LDI
+    LDI
+    POP HL
+    LD DE, FAT_DIR_FIRST_CLUSTER_HI
+    ADD HL, DE
+    LD DE, HDD_TEMP_CLUSTER +2
+    LDI
+    LDI
+
+    ; Subtract 2
+    LD HL, HDD_TEMP_CLUSTER
+    LD A, (HL)
+    SUB 2
+    LD (HL), A
+    LD B, 3
+FAT_LOAD_FILE_LOOP_SUB2_:
+    INC HL
+    LD A, (HL)
+    SBC 0
+    LD (HL), A
+    DJNZ FAT_LOAD_FILE_LOOP_SUB2_
+
+; TODO: CHECK CARRY!!
+
+    ; Multiply by HDD_SECTORS_PER_CLUSTER
+    LD HL, HDD_SECTORS_PER_CLUSTER
+    LD C, (HL)
+    LD B, 4
+    LD DE, HDD_TEMP_CLUSTER
+    LD HL, 0
+FAT_LOAD_FILE_LOOP_MUL_:
+    LD L, H
+    LD A, (DE)
+    CALL MUL
+    LD A, L
+    LD (DE), A
+    INC DE
+    DJNZ FAT_LOAD_FILE_LOOP_MUL_
+
+    ; Add this to the current location
+    LD HL, HDD_TEMP_CLUSTER
+    LD DE, HDD_CURRENT_LOCATION+2
+    LD B, 4
+FAT_LOAD_FILE_LOOP_ADD_:
+    LD A, (DE)
+    ADD A, (HL)
+    LD (DE), A
+    INC HL
+    INC DE
+    DJNZ FAT_LOAD_FILE_LOOP_ADD_
+
+    POP DE
+    CALL FAT_LOAD_CURRENT_LOCATION
+
+    POP HL
+    POP DE
+    POP BC
+    POP AF
+    RET
+
 
 
 
@@ -544,3 +635,7 @@ _FAT_DISK_DIR_TITLE2_:
 ; 9B 63 B7 11 DB EA 94 F4 E1 33 BB BF 96 EE DD D0
 ; 82 61 BF 04 F4 1D C8 1A C7 A9 BF DD 88 AE F3 7D
 ; CA 2B F4 6E 1E 35 4A 23 BD 75 5A 84 69 56 AE BB
+
+
+; 18432 24
+; 18496 - Fil1.txt (18456)

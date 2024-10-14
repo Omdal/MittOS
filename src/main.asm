@@ -197,6 +197,19 @@ DETECT_HDDD:
     call FAT_LIST_FILES
 
     call printCRLF
+    call printCRLF
+
+    LD A, 0
+    LD DE, DISKSECTORB
+    CALL FAT_LOAD_FILE
+    LD HL, DISKSECTORB
+    CALL printstring
+
+    call printCRLF
+    call printCRLF
+    
+
+    call printCRLF
     ld a, 1
     call FAT_LOAD_ROOT_FOLDER
     call FAT_LIST_FILES
@@ -206,6 +219,20 @@ DETECT_HDDD:
     call FAT_LOAD_ROOT_FOLDER
     call FAT_LIST_FILES
 
+    ;call printCRLF
+    ;call printCRLF
+    ;call printCRLF
+    ;LD A, 84
+    ;LD C, FFh
+    ;LD HL,0
+    ;CALL MUL    ; 0A80 (53AC) 21420
+    ;LD A, L
+    ;LD L, H
+    ;LD H, A
+    ;PUSH HL
+    ;CALL PrintUint16_t
+    ;call printCRLF
+    ;call printCRLF
 
 
 loop:
@@ -270,6 +297,7 @@ INCLUDE 'hw/HDD/hdd_io.asm'
 INCLUDE 'txt/io.asm'
 include 'hw/hdd/mbr.asm'
 INCLUDE 'hw/hdd/fat.asm'
+INCLUDE 'math.asm'
 
 
 
