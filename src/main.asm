@@ -235,61 +235,14 @@ DETECT_HDDD:
     ;call printCRLF
 
 
+
+
+
+
+
+
 loop:
-    ; Print command prompt
-    ld hl, PROMPT
-    ld c, SERIAL_CW_1
-    call printstring
-    ; Reset input
-    ld  hl, COMMANDLINE
-getbutton:
-    ; Read a button press
-    call sio_rx_blocking
-    ld  (hl), b
-    inc hl
-    ld  a, b
-    call sio_tx_blocking
-    ; If character is 0D, goto evaluate
-    cp  0Dh
-    jr  Z, EvaluateInput
-    jp  getbutton
-
-
-EvaluateInput:
-    ld  (hl),0
-    ld  a, l
-    cp  1
-    jp  z, EvaluateInputEnd     ; if no input, get new command
-    ld  hl, Error
-    call printstring
-
-;    ld  hl, COMMANDLINE
-;    ld  a,(HL)
-;    call printAsHex
-;    inc hl
-;    ld  a,(hl)
-;    call printAsHex
-;    inc hl
-;    ld  a,(hl)
-;    call printAsHex
-;    inc hl
-;    ld  a,(hl)
-;    call printAsHex
-;    inc hl   
-    
-    ld  hl, COMMANDLINE
-    call printstring
-EvaluateInputEnd
-    ld  a, 0Ah
-    call sio_tx_blocking
-    jp loop
-
-
-    call printAsHex
-    ld a, ' '
-    call sio_tx_blocking
-    jp getbutton
-
+    JP CLI
 
 INCLUDE 'hw/sio/sio_init.asm'
 INCLUDE 'hw/sio/sio_io.asm'
@@ -298,12 +251,11 @@ INCLUDE 'txt/io.asm'
 include 'hw/hdd/mbr.asm'
 INCLUDE 'hw/hdd/fat.asm'
 INCLUDE 'math.asm'
+INCLUDE 'cli.asm'
 
 
 
 WelcomeMsg:     db 12,0Dh,0Ah,0Dh,0Ah,"MicroBIOS v0.1b by Olav Andr",C3h,A9h," Omdal",0Dh,0Ah,0Dh,0Ah,"Checking for installed disk drives.",0Dh,0Ah,0
-Prompt:         db 0Dh,0Ah,"$>",0
-Error:          db 0Dh,0Ah,"Bad command or filename: ", 0
 DISK_DETECTED:  db 0Dh,0Ah,"Disk detected", 0
 DISK_REMOVED:   db 0Dh,0Ah,"Disk not detected", 0
 _string_CRLF:   db 0Dh,0Ah,0
