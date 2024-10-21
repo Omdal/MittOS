@@ -10,7 +10,7 @@ _UnmountAll:
 
 _NextDriveData
     push de
-    ld de, DISKLOCATIONDATA
+    ld de, DISKLOCATIONDATALENGTH
     add hl, de
     pop de
     ret
@@ -45,6 +45,9 @@ _FAT_FIRST_UNMOUNTED_DONE:
 ; Used to convert drive letter to drive index
 ; A Drive letter
 FAT_LOAD_DRIVE:
+    PUSH AF
+    PUSH BC
+    PUSH DE
     PUSH HL
     CP 60h ; Lower case
     JR C, _FAT_LOAD_DRIVE_CAP_
@@ -65,44 +68,24 @@ _FAT_LOAD_NOT_AVALIABLE_:
     LD HL, _FAT_LOAD_DRIVE_OUT_OF_RANGE2_
     CALL printstring
     POP HL
+    POP DE
+    POP BC
+    POP AF
     RET
-_FAT_LOAD_NOT_AVAILABLE_B_:
-    LD A, B ; Load index back to A
-    JR _FAT_LOAD_NOT_AVALIABLE_
-
 _FAT_LOAD_DRIVE_START_:
-    CALL _FAT_LOCATE_DRIVE_DATA_
+    CALL _FAT_LOCATE_DRIVE_DATA_    ; HL = Drive data
     LD B, A     ; Save disk index for later use
     LD A, (HL)  ; Check partition format
     CP 1        ; if partition is missing.
-    JR C, _FAT_LOAD_NOT_AVAILABLE_B_
-_FAT_LOAD_DRIVE_START_AVAILABLE_:
-    PUSH AF
-    LD DE, HDD_CURRENT_DRIVE
-    LD A, B
-    LD (DE), A
-    POP AF
-    LD DE, HDD_CURRENT_LOCATION
-    LD (DE), A ; save partition format
-    INC HL
-    INC DE
-    LD C, (HL)
-    LD A, C
-    LD (DE), A ; save HDD address
-    LD B, 4
-_FAT_LOAD_DRIVE_START_AVAILABLE_ADDRESS_:
-    INC HL
-    INC DE
-    LD A, (HL)
-    LD (DE), A
-    DJNZ _FAT_LOAD_DRIVE_START_AVAILABLE_ADDRESS_
-    
-    LD DE, DISKSECTORA
-    LD HL, HDD_CURRENT_LOCATION+2
-    CALL HDDReadSector
+    LD A, B ; Load index back to A
+    JR C, _FAT_LOAD_NOT_AVALIABLE_
+    ; Load the drive
+    LD      DE,     HDD_CURRENT_DRIVE
+    LD      (DE),   A
+    CALL    FAT_SET_CURRENT_LOCATION
+    LD      DE,     DISKSECTORA
+    CALL    FAT_LOAD_CURRENT_LOCATION
 
-    ;LD HL, DISKSECTORA
-    ;CALL printsectorContent     ; DEBUG INFO
 
 _FAT_LOAD_DRIVE_WRITE_INFO_:
     LD HL, _FAT_DISK_INFO1_
@@ -153,7 +136,16 @@ _FAT_LOAD_DRIVE_WRITE_INFO_TYPE_:
     LD A, ')'
     CALL printChar
     ;CALL printCRLF
+
+    ld HL, HDD_CURRENT_DRIVE
+    ld a, (HL)
+    call FAT_LOAD_ROOT_FOLDER
+    call FAT_LIST_FILES
+
     POP HL
+    POP DE
+    POP BC
+    POP AF
     RET
 
 
@@ -163,17 +155,9 @@ _FAT_LOAD_DRIVE_WRITE_INFO_TYPE_:
 _FAT_LOCATE_DRIVE_DATA_:
     PUSH AF
     PUSH BC
-    PUSH DE
-    ; multiply by DISKLOCATIONDATA (6), TODO create multiplication function
-    LD B, A
-    SLA A
-    ADD B
-    SLA A
-    LD E, A
-    LD D, 0
-    LD HL, HDD_DISKA
-    ADD HL, DE          ; Add offset to first disk data location
-    POP DE
+    LD      HL,     HDD_DISKA
+    LD      C,      DISKLOCATIONDATALENGTH      ; Multiply index by length
+    CALL    MUL                                 ; (A * C) + HL -> HL
     POP BC
     POP AF
     RET
@@ -197,13 +181,8 @@ FAT_SET_CURRENT_LOCATION:
     PUSH DE
     PUSH HL
     LD DE, HDD_CURRENT_LOCATION
-    LD B, DISKLOCATIONDATA
-_FAT_SET_CURRENT_LOCATION_LOOP:
-    LD A, (HL)
-    LD (DE), A
-    INC HL
-    INC DE
-    DJNZ _FAT_SET_CURRENT_LOCATION_LOOP
+    LD BC, DISKLOCATIONDATALENGTH
+    LDIR
     POP HL
     POP DE
     POP BC
@@ -217,13 +196,8 @@ FAT_COPY_CURRENT_LOCATION:
     PUSH DE
     PUSH HL
     LD HL, HDD_CURRENT_LOCATION
-    LD B, DISKLOCATIONDATA
-_FAT_COPY_CURRENT_LOCATION_LOOP:
-    LD A, (HL)
-    LD (DE), A
-    INC HL
-    INC DE
-    DJNZ _FAT_COPY_CURRENT_LOCATION_LOOP
+    LD BC, DISKLOCATIONDATALENGTH
+    LDIR
     POP HL
     POP DE
     POP BC
@@ -269,7 +243,7 @@ FAT_LOAD_ROOT_FOLDER:
     LD (DE), A
 
     ; Multiply sectors per fat by number of FAT sectors (2)
-    LD DE, HDD_ROOT_FOLDER +1
+    LD DE, HDD_ROOT_FOLDER
     LD A, (DE)  ; Load partition format
     CP  MBR_TYPE_FAT32
     JR  z, _FAT_LOCATE_ROOT_FOLDER_FAT32
@@ -277,10 +251,13 @@ FAT_LOAD_ROOT_FOLDER:
     JR  z, _FAT_LOCATE_ROOT_FOLDER_FAT32
 _FAT_LOCATE_ROOT_FOLDER_FAT16:
     LD HL, FAT16_FAT_SECTOR_SIZE_
-    JR _FAT_LOCATE_ROOT_FOLDER_FINAL
+    LD DE, SCRATCHPAD
+    AND A ; Clear carry flag
+    LD B, 2
+    JR _FAT_LOCATE_ROOT_FOLDER_MULTIPLY_
 _FAT_LOCATE_ROOT_FOLDER_FAT32:
     LD HL, FAT32_FAT_SECTOR_SIZE_
-_FAT_LOCATE_ROOT_FOLDER_FINAL:
+;_FAT_LOCATE_ROOT_FOLDER_FINAL:
     ; Multiply 4 bytes by 2 TODO implement multiply function
     LD DE, SCRATCHPAD
     AND A ; Clear carry flag

@@ -167,8 +167,8 @@ DETECT_HDDD:
     ;ld hl, DISKSECTORA
     ;call printsectorContent
 
-    ;ld hl, HDD_DISKA
-    ;call printSectorContent
+;    ld hl, HDD_DISKA
+;    call printSectorContent
 
 ;    ld A, '['
 ;    call FAT_LOAD_DRIVE
@@ -209,15 +209,15 @@ DETECT_HDDD:
     call printCRLF
     
 
-    call printCRLF
-    ld a, 1
-    call FAT_LOAD_ROOT_FOLDER
-    call FAT_LIST_FILES
-
-    call printCRLF
-    ld a, 2
-    call FAT_LOAD_ROOT_FOLDER
-    call FAT_LIST_FILES
+;    call printCRLF
+;    ld a, 1
+;    call FAT_LOAD_ROOT_FOLDER
+;    call FAT_LIST_FILES
+;
+;    call printCRLF
+;    ld a, 2
+;    call FAT_LOAD_ROOT_FOLDER
+;    call FAT_LIST_FILES
 
     ;call printCRLF
     ;call printCRLF

@@ -146,6 +146,7 @@ _HDDSetAddress_Out:
     POP     AF
     RET
 
+; HDD Read sector
 ;   C   :   HDD_Disk_Data address
 ;   DE  :   DEstination address
 ;   HL  :   Pointer to HDD sector ID

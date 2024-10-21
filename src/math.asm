@@ -7,7 +7,7 @@ MUL:
     PUSH DE
     LD D, 0     ; Set DE = C 
     LD E, C
-    LD C, 8     ; Repeat 8 times
+    LD B, 8     ; Repeat 8 times
 _MUL_LOOP:
     RRCA        ; Check if value should be added
     JR NC, _MUL_NEXT

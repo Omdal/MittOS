@@ -67,13 +67,41 @@ CLI_EXECUTE:
     CP      1
     RET     C                       ; The string is empty. Wait for new input
     ; Check command
+    CP      2
+    JR      Z,      CLI_TWO_LETTER
 
     ; No command found?
+CLI_BAD_COMMAND:
     LD      HL,     Error
     CALL    printstring
     LD      HL,     COMMANDLINE
     CALL    printstring
     
     RET
+
+CLI_TWO_LETTER:
+    LD      HL,     COMMANDLINE +1
+    LD      A,      (HL)
+    CP      ':'
+    JR      Z,      CLI_SWITCH_DRIVE
     
+    JR      CLI_BAD_COMMAND
+
+CLI_SWITCH_DRIVE:
+    DEC     HL
+    LD      A,      (HL)
+    ;CALL    FAT_LOAD_DRIVE
+    CALL    FAT_LOAD_DRIVE
+
+    LD      B, A
+    
+    ;ld hl, HDD_DISKA
+    ;call printSectorContent
+
+
+    RET
+    
+
+
+
 Error:          db 0Dh,0Ah,"Bad command or filename: ", 0
