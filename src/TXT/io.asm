@@ -344,3 +344,28 @@ _Divide_NF:
     RR D
     POP BC
     RET
+
+
+
+   
+; HL:   Pointer to string to convert
+ToUpper:
+    PUSH    AF
+    PUSH    HL
+    DEC     HL      ; Saving an extra jump command
+_ToUpper_CHECK:     ; by incrementing pointer at
+    INC     HL      ; the start of the loop
+    LD      A,      (HL)
+    CP      1       ; 0 character, Done!
+    JR      C,      _ToUpper_DONE
+    CP      'z'+1   ; after z
+    JR      NC,     _ToUpper_CHECK
+    CP      'a'     ; before a
+    JR      C,      _ToUpper_CHECK
+    SUB     20h     ; Convert to uppercase
+    LD      (HL),   A
+    JR      _ToUpper_CHECK
+_ToUpper_DONE:
+    POP     HL
+    POP     AF
+    RET

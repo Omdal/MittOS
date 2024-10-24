@@ -67,6 +67,9 @@ Main:
 
 ; Reset HDD location data
     call FAT_UnmountAll
+    ld hl, HDD_CURRENT_DRIVE
+    ld a, '$' - 'A' ; results in output of $ when printing the path
+    ld (hl), A
 
 ; Check first drive
     call HDDDetectA
@@ -189,24 +192,24 @@ DETECT_HDDD:
 ;    ld A, 'd'
 ;    call FAT_LOAD_DRIVE
 
-    call printCRLF
-
-    call printCRLF
-    ld a, 0
-    call FAT_LOAD_ROOT_FOLDER
-    call FAT_LIST_FILES
-
-    call printCRLF
-    call printCRLF
-
-    LD A, 0
-    LD DE, DISKSECTORB
-    CALL FAT_LOAD_FILE
-    LD HL, DISKSECTORB
-    CALL printstring
-
-    call printCRLF
-    call printCRLF
+;    call printCRLF
+;
+;    call printCRLF
+;    ld a, 0
+;    call FAT_LOAD_ROOT_FOLDER
+;    call FAT_LIST_FILES
+;
+;    call printCRLF
+;    call printCRLF
+;
+;    LD A, 0
+;    LD DE, DISKSECTORB
+;    CALL FAT_LOAD_FILE
+;    LD HL, DISKSECTORB
+;    CALL printstring
+;
+;    call printCRLF
+;    call printCRLF
     
 
 ;    call printCRLF

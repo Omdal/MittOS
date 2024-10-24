@@ -97,7 +97,10 @@ HDD_SECTORS_PER_CLUSTER:
 HDD_TEMP_CLUSTER:
     org $+4
 
-
+FAT_FOLDER_DEPTH:
+    org $+1
+FAT_FOLDERS:
+    org $+8*16 ; 16 folders deep?
 
     org DISKSECTORA+13
 FAT_SECTORS_PER_CLUSTER:

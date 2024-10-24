@@ -135,12 +135,12 @@ _FAT_LOAD_DRIVE_WRITE_INFO_TYPE_:
     DJNZ _FAT_LOAD_DRIVE_WRITE_INFO_TYPE_
     LD A, ')'
     CALL printChar
-    ;CALL printCRLF
+    CALL printCRLF
 
     ld HL, HDD_CURRENT_DRIVE
     ld a, (HL)
     call FAT_LOAD_ROOT_FOLDER
-    call FAT_LIST_FILES
+    ;call FAT_LIST_FILES
 
     POP HL
     POP DE
@@ -228,11 +228,9 @@ FAT_LOAD_ROOT_FOLDER:
     ; Save number of sectors per cluster for the current drive
     LD DE, HDD_SECTORS_PER_CLUSTER
     LD HL, FAT_SECTORS_PER_CLUSTER
-    LD A, (HL)
-    LD (DE), A
+    LDI
     ; Add reserved sectors
     LD DE, HDD_ROOT_FOLDER + 2
-    INC HL ;FAT_RESERVED_SECTORS
     LD A, (DE)
     ADD A, (HL)
     LD (DE), A  
@@ -288,8 +286,12 @@ _FAT_LOCATE_ROOT_FOLDER_ADD_:
     LD HL, HDD_FOLDER_LOCATION
     CALL FAT_COPY_CURRENT_LOCATION
 ; Read folder contents
-    LD DE, DISKSECTORA
-    CALL FAT_LOAD_CURRENT_LOCATION
+;    LD DE, DISKSECTORA
+;    CALL FAT_LOAD_CURRENT_LOCATION
+; Reset the folder depth
+    LD HL,  FAT_FOLDER_DEPTH
+    XOR A
+    LD (HL), A
 
     POP HL
     POP DE
@@ -305,19 +307,16 @@ FAT_LIST_FILES:
     PUSH HL
 
     ; Load the data at the current location
-    LD DE, DISKSECTORA
-    CALL FAT_LOAD_CURRENT_LOCATION
+;    LD DE, DISKSECTORA
+;    CALL FAT_LOAD_CURRENT_LOCATION
     ; Backup the location for later use
     LD DE, HDD_FOLDER_LOCATION
     CALL FAT_COPY_CURRENT_LOCATION
 
-;    LD HL, DISKSECTORA
-;    CALL printSectorContent
-
 FAT_LIST_FILES_LOOP_SECTOR:
     LD DE, DISKSECTORA
     CALL FAT_LOAD_CURRENT_LOCATION
-    LD HL, DISKSECTORA
+    LD HL, DE;DISKSECTORA
     LD DE, FAT_DIR_DATASIZE
     LD C, 16 ; 16 DIR-elements per sector
 FAT_LIST_FILES_LOOP:
@@ -558,7 +557,7 @@ _FAT_DISK_INFO1_:
 _FAT_DISK_INFO2_:
     db " formatted [",0
 _FAT_DISK_DIR_TITLE1_:
-    db "Volume label of drive ",0
+    db 0Dh,0Ah,"Volume label of drive ",0
 _FAT_DISK_DIR_TITLE2_:
     db " is ",0
 

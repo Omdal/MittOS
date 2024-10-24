@@ -9,12 +9,18 @@ CLI:
 ; Print the command prompt
 CLI_PROMPT:
     CALL printCRLF
-    CALL printCRLF
     ;Drive letter followed by :
-    ; Folders and subfolders separated by \
-    LD A, '$'
+    LD HL, HDD_CURRENT_DRIVE
+    LD A, (HL)
+    ADD 'A'
     CALL printChar
+    CP 'A'
+    JR C, _CLI_PROMPT_SKIP_COLON_
+    LD A, ':'
+    CALL printChar
+    ; Folders and subfolders separated by \
 
+_CLI_PROMPT_SKIP_COLON_:
     LD A, '>'
     CALL printChar
     RET
@@ -58,12 +64,14 @@ _CLI_IN_DONE:
 
 
 CLI_EXECUTE:
+    PUSH    HL                      ; Save HL before messing with it.
+    LD      HL,     COMMANDLINE
+    CALL    ToUpper
     OR      A                       ; Reset carry
     LD      DE,     COMMANDLINE
-    PUSH    HL                      ; Save HL before messing with it.
+    POP     HL
     SBC     HL,     DE
     LD      A,      L               ; Get the length of the input string
-    POP     HL
     CP      1
     RET     C                       ; The string is empty. Wait for new input
     ; Check command
@@ -84,8 +92,15 @@ CLI_TWO_LETTER:
     LD      A,      (HL)
     CP      ':'
     JR      Z,      CLI_SWITCH_DRIVE
-    
-    JR      CLI_BAD_COMMAND
+    CP      'S'
+    JR      NZ,     CLI_BAD_COMMAND
+    DEC     HL
+    LD      A,      (HL)
+    CP      'L'
+    JR      NZ,     CLI_BAD_COMMAND
+    CALL    FAT_LIST_FILES
+    RET
+
 
 CLI_SWITCH_DRIVE:
     DEC     HL
@@ -97,11 +112,6 @@ CLI_SWITCH_DRIVE:
     
     ;ld hl, HDD_DISKA
     ;call printSectorContent
-
-
     RET
-    
-
-
 
 Error:          db 0Dh,0Ah,"Bad command or filename: ", 0
