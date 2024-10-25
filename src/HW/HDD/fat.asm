@@ -1,3 +1,13 @@
+    ;BIT 0,(HL)  ; Read only
+    ;BIT 1,(HL)  ; Hidden
+    ;BIT 2,(HL)  ; System
+    ;BIT 3,(HL)  ; Volume ID
+    ;BIT 4,(HL)  ; Directory
+FILE_ATTR_DIRECTORY     EQU 00010000b
+    ;BIT 5,(HL)  ; Archive
+
+
+
 FAT_UnmountAll:
     xor A
     ld b, 26
@@ -42,125 +52,10 @@ _FAT_FIRST_UNMOUNTED_DONE:
     POP     AF
     RET
 
-; Used to convert drive letter to drive index
-; A Drive letter
-FAT_LOAD_DRIVE:
-    PUSH AF
-    PUSH BC
-    PUSH DE
-    PUSH HL
-    CP 60h ; Lower case
-    JR C, _FAT_LOAD_DRIVE_CAP_
-    SUB 20h
-_FAT_LOAD_DRIVE_CAP_:
-    CP 40h ; Upper case
-    JR C, _FAT_LOAD_DRIVE_INDEX_
-    SUB 'A'
-_FAT_LOAD_DRIVE_INDEX_:
-    CP 1Ah
-    JR C, _FAT_LOAD_DRIVE_START_
-    ; Out of range
-_FAT_LOAD_NOT_AVALIABLE_:
-    LD HL, _FAT_LOAD_DRIVE_OUT_OF_RANGE1_
-    CALL printstring
-    ADD 'A'
-    CALL printChar
-    LD HL, _FAT_LOAD_DRIVE_OUT_OF_RANGE2_
-    CALL printstring
-    POP HL
-    POP DE
-    POP BC
-    POP AF
-    RET
-_FAT_LOAD_DRIVE_START_:
-    CALL _FAT_LOCATE_DRIVE_DATA_    ; HL = Drive data
-    LD B, A     ; Save disk index for later use
-    LD A, (HL)  ; Check partition format
-    CP 1        ; if partition is missing.
-    LD A, B ; Load index back to A
-    JR C, _FAT_LOAD_NOT_AVALIABLE_
-    ; Load the drive
-    LD      DE,     HDD_CURRENT_DRIVE
-    LD      (DE),   A
-    CALL    FAT_SET_CURRENT_LOCATION
-    LD      DE,     DISKSECTORA
-    CALL    FAT_LOAD_CURRENT_LOCATION
+INCLUDE 'FAT/load_drive.asm'
 
 
-_FAT_LOAD_DRIVE_WRITE_INFO_:
-    LD HL, _FAT_DISK_INFO1_
-    CALL printstring
-    LD DE, HDD_CURRENT_DRIVE
-    LD A, (DE)
-    ADD 'A'
-    CALL printChar
-    LD A, ':'
-    CALL printChar
-    LD A, ' '
-    CALL printChar
-    LD HL, DISKSECTORA+3
-    CALL printstring    ; Gamble on 512 byte sectors
-    LD HL, _FAT_DISK_INFO2_
-    CALL printstring
 
-    LD DE, HDD_CURRENT_LOCATION
-    LD A, (DE)  ; Load partition format
-
-    cp  MBR_TYPE_FAT32
-    jr  z, _FAT_LOAD_DRIVE_WRITE_INFO_NAME_FAT32_
-    cp  MBR_TYPE_FAT32_1
-    jr  z, _FAT_LOAD_DRIVE_WRITE_INFO_NAME_FAT32_
-
-    ; Handle other format as FAT16
-    LD HL, DISKSECTORA + 2Bh    ;2B for FAT16
-    JR _FAT_LOAD_DRIVE_WRITE_INFO_NAME_COMMON_
-_FAT_LOAD_DRIVE_WRITE_INFO_NAME_FAT32_:
-    LD HL, DISKSECTORA + 47h    ;2B for FAT16
-_FAT_LOAD_DRIVE_WRITE_INFO_NAME_COMMON_:
-    LD B, 11
-_FAT_LOAD_DRIVE_WRITE_INFO_NAME_:
-    LD A, (HL)
-    INC HL
-    CALL printChar
-    DJNZ _FAT_LOAD_DRIVE_WRITE_INFO_NAME_
-    LD A, ']'
-    CALL printChar
-    LD A, '('
-    CALL printChar
-    LD B, 8
-_FAT_LOAD_DRIVE_WRITE_INFO_TYPE_:
-    LD A, (HL)
-    INC HL
-    CALL printChar
-    DJNZ _FAT_LOAD_DRIVE_WRITE_INFO_TYPE_
-    LD A, ')'
-    CALL printChar
-    CALL printCRLF
-
-    ld HL, HDD_CURRENT_DRIVE
-    ld a, (HL)
-    call FAT_LOAD_ROOT_FOLDER
-    ;call FAT_LIST_FILES
-
-    POP HL
-    POP DE
-    POP BC
-    POP AF
-    RET
-
-
-; A : Drive index
-; Retruns
-; HL : Location of drive data
-_FAT_LOCATE_DRIVE_DATA_:
-    PUSH AF
-    PUSH BC
-    LD      HL,     HDD_DISKA
-    LD      C,      DISKLOCATIONDATALENGTH      ; Multiply index by length
-    CALL    MUL                                 ; (A * C) + HL -> HL
-    POP BC
-    POP AF
-    RET
 
 ; DE: Destination pointer
 FAT_LOAD_CURRENT_LOCATION:
@@ -204,115 +99,15 @@ FAT_COPY_CURRENT_LOCATION:
     POP AF
     RET
 
-; A: Disk index
-; Contents of Disksectora is FAT data
-FAT_LOAD_ROOT_FOLDER:
-    PUSH AF
-    PUSH BC
-    PUSH DE
-    PUSH HL
-
-    LD HL, HDD_CURRENT_DRIVE
-    LD (HL), A
-    ; Save root address
-    CALL _FAT_LOCATE_DRIVE_DATA_
-    CALL FAT_SET_CURRENT_LOCATION
-
-    ; Set the root folder to FAT table
-    LD DE, HDD_ROOT_FOLDER
-    CALL FAT_COPY_CURRENT_LOCATION
-
-    ; Load the FAT table
-    LD DE, DISKSECTORA
-    CALL FAT_LOAD_CURRENT_LOCATION
-    ; Save number of sectors per cluster for the current drive
-    LD DE, HDD_SECTORS_PER_CLUSTER
-    LD HL, FAT_SECTORS_PER_CLUSTER
-    LDI
-    ; Add reserved sectors
-    LD DE, HDD_ROOT_FOLDER + 2
-    LD A, (DE)
-    ADD A, (HL)
-    LD (DE), A  
-    INC DE
-    INC HL
-    LD A, (DE)
-    ADC A, (HL)
-    LD (DE), A
-
-    ; Multiply sectors per fat by number of FAT sectors (2)
-    LD DE, HDD_ROOT_FOLDER
-    LD A, (DE)  ; Load partition format
-    CP  MBR_TYPE_FAT32
-    JR  z, _FAT_LOCATE_ROOT_FOLDER_FAT32
-    CP  MBR_TYPE_FAT32_1
-    JR  z, _FAT_LOCATE_ROOT_FOLDER_FAT32
-_FAT_LOCATE_ROOT_FOLDER_FAT16:
-    LD HL, FAT16_FAT_SECTOR_SIZE_
-    LD DE, SCRATCHPAD
-    AND A ; Clear carry flag
-    LD B, 2
-    JR _FAT_LOCATE_ROOT_FOLDER_MULTIPLY_
-_FAT_LOCATE_ROOT_FOLDER_FAT32:
-    LD HL, FAT32_FAT_SECTOR_SIZE_
-;_FAT_LOCATE_ROOT_FOLDER_FINAL:
-    ; Multiply 4 bytes by 2 TODO implement multiply function
-    LD DE, SCRATCHPAD
-    AND A ; Clear carry flag
-    LD B, 4
-_FAT_LOCATE_ROOT_FOLDER_MULTIPLY_:
-    LD A, (HL)
-    RLA                 ;RL (HL)
-    LD (DE), A
-    INC HL
-    INC DE
-    DJNZ _FAT_LOCATE_ROOT_FOLDER_MULTIPLY_
-    ; Add to address
-    LD DE, SCRATCHPAD
-    LD HL, HDD_ROOT_FOLDER +2
-    AND A ; Clear carry flag
-    LD B, 4
-_FAT_LOCATE_ROOT_FOLDER_ADD_:
-    LD A, (DE)
-    ADC A, (HL)
-    LD (HL), A
-    INC HL
-    INC DE
-    DJNZ _FAT_LOCATE_ROOT_FOLDER_ADD_
-; Set root-folder as current location
-    LD HL, HDD_ROOT_FOLDER
-    CALL FAT_SET_CURRENT_LOCATION
-; Set the root folder to current folder
-    LD HL, HDD_FOLDER_LOCATION
-    CALL FAT_COPY_CURRENT_LOCATION
-; Read folder contents
-;    LD DE, DISKSECTORA
-;    CALL FAT_LOAD_CURRENT_LOCATION
-; Reset the folder depth
-    LD HL,  FAT_FOLDER_DEPTH
-    XOR A
-    LD (HL), A
-
-    POP HL
-    POP DE
-    POP BC
-    POP AF
-    RET
-
 
 FAT_LIST_FILES:
     PUSH AF
     PUSH BC
     PUSH DE
     PUSH HL
-
-    ; Load the data at the current location
-;    LD DE, DISKSECTORA
-;    CALL FAT_LOAD_CURRENT_LOCATION
-    ; Backup the location for later use
-    LD DE, HDD_FOLDER_LOCATION
-    CALL FAT_COPY_CURRENT_LOCATION
-
+    ; Start at the current folder location
+    LD HL, HDD_FOLDER_LOCATION
+    CALL FAT_SET_CURRENT_LOCATION
 FAT_LIST_FILES_LOOP_SECTOR:
     LD DE, DISKSECTORA
     CALL FAT_LOAD_CURRENT_LOCATION
@@ -330,14 +125,50 @@ FAT_LIST_FILES_LOOP:
     ; Check the next sector
     CALL FAT_NEXT_SECTOR
     JR FAT_LIST_FILES_LOOP_SECTOR
-
 _FAT_LIST_FILES_END_:
-    LD HL, HDD_FOLDER_LOCATION
-    CALL FAT_SET_CURRENT_LOCATION
+;    LD HL, HDD_FOLDER_LOCATION
+;    CALL FAT_SET_CURRENT_LOCATION
     POP HL
     POP DE
     POP BC
     POP AF
+    RET
+
+; Parameters:
+; B: Directory = 1
+; A: 0=file found
+; C: 16 - file-index
+; CurrentLocation = Found in this sector
+FAT_FIND:
+    PUSH DE
+    PUSH HL
+    ; Backup the location for later use
+    LD HL, HDD_FOLDER_LOCATION
+    CALL FAT_SET_CURRENT_LOCATION
+FAT_FIND_LOOP_SECTOR:
+    LD DE, DISKSECTORA
+    CALL FAT_LOAD_CURRENT_LOCATION
+    LD HL, DE
+    LD DE, FAT_DIR_DATASIZE
+    LD C, 16 ; 16 DIR-elements per sector
+_FAT_FIND_LOOP:
+    LD A, (HL)
+    CP 0
+    LD A, 1 ; File not found
+    JR Z, _FAT_FIND_END_
+    ; Check file
+    CALL FAT_CHECK_FILE_NAME
+    CP 0
+    JR Z, _FAT_FIND_END_
+    ADD HL,DE
+    DEC C
+    JR NZ, _FAT_FIND_LOOP
+    ; Check the next sector
+    CALL FAT_NEXT_SECTOR
+    JR FAT_FIND_LOOP_SECTOR
+_FAT_FIND_END_:
+    POP HL
+    POP DE
     RET
 
 
@@ -363,6 +194,73 @@ FAT_NEXT_SECTOR_LOOP_:
     POP AF
     RET
 
+
+FAT_CHECK_FILE_NAME:
+    PUSH BC ;B=0 file, C File index
+    PUSH DE
+    PUSH HL
+
+; Skip deleted files
+    LD DE, FAT_DIR_ATTR
+    LD A, (HL)
+    CP E5h ; Deleted file
+    JR Z, _FAT_CHECK_FILE_NAME_NOT_FOUND
+
+    ADD HL, DE
+    ; File attributes
+    ; 0x_F = Long filename
+    ;BIT 0,(HL)  ; Read only
+    BIT 1,(HL)  ; Hidden
+    JR NZ, _FAT_CHECK_FILE_NAME_NOT_FOUND
+    BIT 2,(HL)  ; System
+    JR NZ, _FAT_CHECK_FILE_NAME_NOT_FOUND
+    BIT 3,(HL)  ; Volume ID
+    JR NZ, _FAT_CHECK_FILE_NAME_NOT_FOUND
+    BIT 4,(HL)  ; Directory
+    JR NZ, _FAT_CHECK_FILE_NAME_DIRECTORY_
+    ;BIT 5,(HL)  ; Archive
+_FAT_CHECK_FILE_NAME_FILE_:
+    LD A, B
+    CP 0    ; Check files or folders
+    JR NZ, _FAT_CHECK_FILE_NAME_NOT_FOUND
+_FAT_CHECK_FILE_NAME_:
+    ; Copy filename
+    AND A
+    SBC HL, DE ; Go back to filename
+    LD DE, FAT_TEST_NAME
+    LD BC, 11
+    LDIR       ; Copy filename to test-location
+    ; Compare filenames
+
+    ;call printCRLF
+    ;ld b, 11
+    ;ld hl, FAT_TARGET_NAME
+    ;call printstringLength
+    ;call printCRLF
+;                           Debug comparison
+    ;ld b, 11
+    ;ld hl, FAT_TEST_NAME
+    ;call printstringLength
+    ;call printCRLF
+
+    LD  B, 11
+    LD  HL, FAT_TARGET_NAME
+    LD  DE, FAT_TEST_NAME
+    CALL CompareStringsLength
+    JR  _FAT_CHECK_DONE_
+
+_FAT_CHECK_FILE_NAME_DIRECTORY_:
+    LD A, B
+    CP 0    ; Check files or folders
+    JR Z, _FAT_CHECK_FILE_NAME_NOT_FOUND
+    JR _FAT_CHECK_FILE_NAME_
+_FAT_CHECK_FILE_NAME_NOT_FOUND:
+    LD A, 1 ; Filename is different
+_FAT_CHECK_DONE_:
+    POP HL
+    POP DE
+    POP BC
+    RET
 
 
 FAT_PRINT_DIR_LINE:
@@ -424,7 +322,7 @@ _FAT_PRINT_DIR_LINE_VOLUME_LABEL_:
     PUSH HL
     LD HL, _FAT_DISK_DIR_TITLE1_
     CALL printstring
-    LD HL, HDD_CURRENT_DRIVE
+    LD HL, HDD_CURRENT_DRIVE_INDEX
     LD A, (HL)
     ADD 'A'
     CALL printChar
@@ -529,6 +427,152 @@ FAT_LOAD_FILE_LOOP_ADD_:
 
 
 
+
+
+; C: 16 - C = File index in current sector
+; DISKSECTORA. current sector content
+FAT_SWITCH_DIRECTORY:
+    PUSH AF
+    PUSH BC
+    PUSH DE
+    PUSH HL
+
+    ; "Invert" the index
+    LD A, 16
+    SUB C
+
+    ; Start in the root folder
+    LD HL, HDD_ROOT_FOLDER              ; Set the root-folder as the current folder
+    CALL FAT_SET_CURRENT_LOCATION
+    LD DE, HDD_FOLDER_LOCATION          ; Prepare the folder location
+    CALL FAT_COPY_CURRENT_LOCATION
+
+    ; Locate the correct offset
+    LD C, FAT_DIR_DATASIZE
+    LD HL, DISKSECTORA
+    CALL MUL ; Jump to the index
+
+    ; Store base cluster
+    PUSH HL
+    LD DE, FAT_DIR_FIRST_CLUSTER_LOW
+    ADD HL, DE
+    LD DE, HDD_TEMP_CLUSTER
+    LDI
+    LDI
+    POP HL
+    PUSH DE
+    LD DE, FAT_DIR_FIRST_CLUSTER_HI
+    ADD HL, DE
+    POP DE
+    ;LD DE, HDD_TEMP_CLUSTER +2
+    LDI
+    LDI
+
+    ; Subtract 2
+    LD HL, HDD_TEMP_CLUSTER
+    LD A, (HL)
+    SUB 2
+    LD (HL), A
+    LD B, 3
+FAT_SWITCH_DIRECTORY_LOOP_SUB2_:
+    INC HL
+    LD A, (HL)
+    SBC 0
+    LD (HL), A
+    DJNZ FAT_SWITCH_DIRECTORY_LOOP_SUB2_
+
+    JR C, FAT_SWITCH_DIRECTORY_TO_ROOT  ; If carry, go back to root
+
+;    ; If Fat16, add 32  TODO: Calculate this number...
+;    LD DE, HDD_ROOT_FOLDER
+;    LD A, (DE)  ; Load partition format
+;    CP  MBR_TYPE_FAT32
+;    JR  z, FAT_SWITCH_DIRECTORY_SKIP_FAT16_
+;    CP  MBR_TYPE_FAT32_1
+;    JR  z, FAT_SWITCH_DIRECTORY_SKIP_FAT16_
+;    
+;    LD HL, HDD_TEMP_CLUSTER
+;    LD A, (HL)
+;    ADD 32
+;    LD (HL), A
+;    LD B, 3
+;FAT_SWITCH_DIRECTORY_LOOP_ADD32_:
+;    INC HL
+;    LD A, (HL)
+;    ADC 0
+;    LD (HL), A
+;    DJNZ FAT_SWITCH_DIRECTORY_LOOP_ADD32_
+;
+;FAT_SWITCH_DIRECTORY_SKIP_FAT16_
+    ; Multiply by HDD_SECTORS_PER_CLUSTER
+    LD HL, HDD_SECTORS_PER_CLUSTER
+    LD C, (HL)
+    LD B, 4
+    LD DE, HDD_TEMP_CLUSTER
+    LD HL, 0
+FAT_SWITCH_DIRECTORY_LOOP_MUL_:
+    LD L, H
+    LD H, 0
+    LD A, (DE)
+    CALL MUL
+    LD A, L
+    LD (DE), A
+    INC DE
+    DJNZ FAT_SWITCH_DIRECTORY_LOOP_MUL_
+
+    ; Add this to the current location
+    LD HL, HDD_TEMP_CLUSTER
+    LD DE, HDD_FOLDER_LOCATION+2
+    LD B, 4
+FAT_SWITCH_DIRECTORY_LOOP_ADD_:
+    LD A, (DE)
+    ADD A, (HL)
+    LD (DE), A
+    INC HL
+    INC DE
+    DJNZ FAT_SWITCH_DIRECTORY_LOOP_ADD_
+
+    ; Increment directory counter
+    LD HL, FAT_FOLDER_DEPTH
+    LD A, (HL)
+    INC (HL)
+    ; Save folder name
+    LD C, FAT_FOLDERNAME_LENGTH
+    LD HL, FAT_FOLDERS
+    CALL MUL
+    LD DE, HL
+    LD HL, FAT_TARGET_NAME
+    LD BC, FAT_FOLDERNAME_LENGTH
+    LDIR
+
+
+FAT_SWITCH_DIRECTORY_DONE:
+    POP HL
+    POP DE
+    POP BC
+    POP AF
+    RET
+
+FAT_SWITCH_DIRECTORY_TO_ROOT:
+    LD HL, HDD_ROOT_FOLDER
+    CALL FAT_SET_CURRENT_LOCATION
+    LD DE, HDD_FOLDER_LOCATION
+    CALL FAT_COPY_CURRENT_LOCATION
+    XOR A
+    LD HL, FAT_FOLDER_DEPTH
+    LD (HL), A
+    JR FAT_SWITCH_DIRECTORY_DONE
+
+; 18432 + 72 = 18504
+; 18496
+; 18504     0000 4848
+
+;1369770384 51A5 0990
+
+; 2048 + 462 + 2 = 2512
+; E7 * 2
+; 2547  -2544   ; 
+
 DEBUG_CURRENT_LOCATION:
     push af
     push bc
@@ -547,15 +591,6 @@ _DEBUG_CURRENT_LOCATION_LOOP_:
     pop af
     ret
 
-
-_FAT_LOAD_DRIVE_OUT_OF_RANGE1_:
-    db 0Dh,0Ah,"ERROR: Disk ",0
-_FAT_LOAD_DRIVE_OUT_OF_RANGE2_:
-    db " does not exist.",0Dh,0Ah,0
-_FAT_DISK_INFO1_:
-    db 0Dh,0Ah,"Disk ",0
-_FAT_DISK_INFO2_:
-    db " formatted [",0
 _FAT_DISK_DIR_TITLE1_:
     db 0Dh,0Ah,"Volume label of drive ",0
 _FAT_DISK_DIR_TITLE2_:

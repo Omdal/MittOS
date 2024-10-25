@@ -4,13 +4,25 @@ CLI:
     CALL CLI_EXECUTE
     JR CLI ; Keep running
 
-
+CLI_PRINT_WO_SPACES:
+    PUSH BC
+    LD B, FAT_FOLDERNAME_LENGTH
+CLI_STRIP_SPACES_LOOP:
+    LD A, (HL)
+    CP ' '
+    JR Z, CLI_STRIP_SPACES_SKIP
+    CALL printChar
+CLI_STRIP_SPACES_SKIP:
+    INC HL
+    DJNZ CLI_STRIP_SPACES_LOOP
+    POP BC
+    RET
 
 ; Print the command prompt
 CLI_PROMPT:
     CALL printCRLF
     ;Drive letter followed by :
-    LD HL, HDD_CURRENT_DRIVE
+    LD HL, HDD_CURRENT_DRIVE_INDEX
     LD A, (HL)
     ADD 'A'
     CALL printChar
@@ -19,7 +31,18 @@ CLI_PROMPT:
     LD A, ':'
     CALL printChar
     ; Folders and subfolders separated by \
-
+    LD HL, FAT_FOLDER_DEPTH
+    LD A, (HL)
+    CP 0
+    JR Z, _CLI_PROMPT_SKIP_COLON_
+    LD B, A
+    LD HL, FAT_FOLDERS
+    LD DE, FAT_FOLDERNAME_LENGTH
+CLI_PROMPT_FOLDERS:
+    LD A, '\\'
+    CALL printChar
+    CALL CLI_PRINT_WO_SPACES
+    DJNZ, CLI_PROMPT_FOLDERS
 _CLI_PROMPT_SKIP_COLON_:
     LD A, '>'
     CALL printChar
@@ -77,6 +100,77 @@ CLI_EXECUTE:
     ; Check command
     CP      2
     JR      Z,      CLI_TWO_LETTER
+
+    ; CD ***
+    LD      HL, COMMANDLINE
+    LD      A, (HL)
+    CP      'C'
+    JR      NZ, _CLI_CD_DONE
+    INC     HL
+    LD      A, (HL)
+    CP      'D'
+    JR      NZ, _CLI_CD_DONE
+    INC     HL
+    LD      A, (HL)
+    CP      ' '
+    JR      NZ, _CLI_CD_DONE
+    LD      B, 11
+    LD      DE, FAT_TARGET_NAME
+    INC     HL
+_CLI_COPY_FOLDER_LOOP_:
+    LD      A, (HL)
+    CP      0
+    JR      NZ, _CLI_COPY_FOLDER_LOOP_COPY_
+    LD      A, ' '
+    JR      _CLI_COPY_FOLDER_LOOP_SPACE_NEXT_
+_CLI_COPY_FOLDER_LOOP_COPY_:
+    INC HL
+_CLI_COPY_FOLDER_LOOP_SPACE_NEXT_:
+    LD      (DE), A
+    INC     DE
+    DJNZ    _CLI_COPY_FOLDER_LOOP_
+    ; Parameters:
+    ; B: Directory = 1
+    ; A: 0=file found
+    ; C: 16 - file-index
+    ; CurrentLocation = Found in this sector
+    LD B, 1
+    CALL FAT_FIND
+    CP      0
+    JR      NZ, CLI_BAD_COMMAND
+    ; Switch folder
+    CALL    FAT_SWITCH_DIRECTORY
+    RET
+_CLI_CD_DONE:
+    ; Look for file
+    LD      HL, COMMANDLINE
+    LD      B, 8
+    LD      DE, FAT_TARGET_NAME
+_CLI_COPY_FILE_LOOP_:
+    LD      A, (HL)
+    CP      0
+    JR      NZ, _CLI_COPY_FILE_LOOP_COPY_
+    LD      A, ' '
+    JR      _CLI_COPY_FILE_LOOP_SPACE_NEXT_
+_CLI_COPY_FILE_LOOP_COPY_:
+    INC HL
+_CLI_COPY_FILE_LOOP_SPACE_NEXT_:
+    LD      (DE), A
+    INC     DE
+    DJNZ    _CLI_COPY_FILE_LOOP_
+    ; Parameters:
+    ; B: Directory = 1
+    ; A: 0=file found
+    ; C: 16 - file-index
+    ; CurrentLocation = Found in this sector
+    LD B, 0
+    CALL FAT_FIND
+    CP      0
+    JR      NZ, CLI_BAD_COMMAND
+    ; Execute file..
+    RET
+
+
 
     ; No command found?
 CLI_BAD_COMMAND:

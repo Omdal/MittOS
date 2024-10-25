@@ -67,7 +67,7 @@ Main:
 
 ; Reset HDD location data
     call FAT_UnmountAll
-    ld hl, HDD_CURRENT_DRIVE
+    ld hl, HDD_CURRENT_DRIVE_INDEX
     ld a, '$' - 'A' ; results in output of $ when printing the path
     ld (hl), A
 

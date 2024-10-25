@@ -369,3 +369,29 @@ _ToUpper_DONE:
     POP     HL
     POP     AF
     RET
+
+
+; B, length
+; DE, HL, Pointers to strings
+; Returns:
+;   A: 0 = equal
+CompareStringsLength:
+    PUSH    BC
+    PUSH    DE
+    PUSH    HL
+_CompareStringsLoop:
+    LD A, (DE)
+    CP (HL)
+    JR  NZ, _CompareStringsLength_NOT_FOUND
+    INC     DE
+    INC     HL
+    DJNZ    _CompareStringsLoop
+    XOR     A ; Strings are equal
+    JR      _CompareStringsLength_DONE
+_CompareStringsLength_NOT_FOUND:
+    LD A, 1
+_CompareStringsLength_DONE:
+    POP     HL
+    POP     DE
+    POP     BC
+    RET
