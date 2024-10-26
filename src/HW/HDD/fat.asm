@@ -105,6 +105,7 @@ FAT_LIST_FILES:
     PUSH BC
     PUSH DE
     PUSH HL
+    CALL printCRLF
     ; Start at the current folder location
     LD HL, HDD_FOLDER_LOCATION
     CALL FAT_SET_CURRENT_LOCATION
@@ -532,6 +533,26 @@ FAT_SWITCH_DIRECTORY_LOOP_ADD_:
     INC DE
     DJNZ FAT_SWITCH_DIRECTORY_LOOP_ADD_
 
+    ; Folder name = . 
+    LD HL, FAT_TARGET_NAME
+    LD A, (HL)
+    CP '.'
+    JR NZ, FAT_SWITCH_DIRECTORY_GO_DEEPER_
+    INC HL
+    LD A, (HL)
+    CP ' '
+    JR Z, FAT_SWITCH_DIRECTORY_DONE
+    CP '.'
+    JR NZ, FAT_SWITCH_DIRECTORY_GO_DEEPER_
+    INC HL
+    LD A, (HL)
+    CP ' '
+    JR NZ, FAT_SWITCH_DIRECTORY_GO_DEEPER_
+    LD HL, FAT_FOLDER_DEPTH
+    DEC (HL) ; Go to parent folder
+    JR FAT_SWITCH_DIRECTORY_DONE
+
+FAT_SWITCH_DIRECTORY_GO_DEEPER_:
     ; Increment directory counter
     LD HL, FAT_FOLDER_DEPTH
     LD A, (HL)
