@@ -163,11 +163,20 @@ _CLI_COPY_FILE_LOOP_SPACE_NEXT_:
     ; A: 0=file found
     ; C: 16 - file-index
     ; CurrentLocation = Found in this sector
+    LD      A,  'C'
+    LD      (DE), A
+    INC     DE
+    LD      A,  'O'
+    LD      (DE), A
+    INC     DE
+    LD      A,  'M'
+    LD      (DE), A
     LD B, 0
     CALL FAT_FIND
     CP      0
     JR      NZ, CLI_BAD_COMMAND
     ; Execute file..
+    CALL FAT_LOAD_FILE
     RET
 
 

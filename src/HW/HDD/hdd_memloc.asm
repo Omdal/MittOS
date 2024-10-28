@@ -122,51 +122,11 @@ FAT32_FAT_SECTOR_SIZE_:
 
 
 
-
-
-
-HDD_COUNT:
-    org A301h
-HDD_CURRENT_HDD:
-    org A302h
-HDD_CURRENT_ID:
-    org A303h
-HDD_CURRENT_OFFSET:
-    org A304h
-HDD_FOLDER0:
-    org A308h
-HDD_FOLDER1:
-    org A30Bh
-HDD_FOLDER2:
-    org A310h
-HDD_FOLDER3:
-    org A314h
-HDD_FOLDER4:
-    org A318h
-HDD_FOLDER5:
-    org A31Bh
-HDD_FOLDER6:
-    org A320h
-HDD_FOLDER7:
-    org A324h
-HDD_FOLDER8:
-    org A328h
-HDD_FOLDER9:
-    org A32Bh
-HDD_FOLDERA:
-    org A330h
-HDD_FOLDERB:
-    org A334h
-HDD_FOLDERC:
-    org A338h
-HDD_FOLDERD:
-    org A33Bh
-HDD_FOLDERE:
-    org A340h
-HDD_FOLDERF:
-    org A344h
-    org A3ABh
-    org A3B0h
-HDD_TYPE:
-    org A3D0h
-HDD_PATH:
+    org B000h
+PROGRAMSECTORA:
+    org $+512
+PROGRAMSECTORB:
+    org $+512
+PROGRAMSECTORC:
+    org $+512
+PROGRAMSECTORD:

@@ -349,75 +349,15 @@ FAT_LOAD_FILE:
     PUSH DE
     PUSH HL
 
-    PUSH DE ; -For later use
+    LD  A,  0   ; File
+    CALL _FAT_LOAD_DIRECTORY_LOCATION_
 
-    ; Start in the root folder
-    LD HL, HDD_FOLDER_LOCATION
-    CALL FAT_SET_CURRENT_LOCATION
-
-    ; Locate the correct offset
-    LD C, FAT_DIR_DATASIZE
-    LD HL, DISKSECTORA
-    CALL MUL ; Jump to the index
-
-    ; Store base cluster
-    PUSH HL
-    LD DE, FAT_DIR_FIRST_CLUSTER_LOW
-    ADD HL, DE
-    LD DE, HDD_TEMP_CLUSTER
-    LDI
-    LDI
-    POP HL
-    LD DE, FAT_DIR_FIRST_CLUSTER_HI
-    ADD HL, DE
-    LD DE, HDD_TEMP_CLUSTER +2
-    LDI
-    LDI
-
-    ; Subtract 2
-    LD HL, HDD_TEMP_CLUSTER
-    LD A, (HL)
-    SUB 2
-    LD (HL), A
-    LD B, 3
-FAT_LOAD_FILE_LOOP_SUB2_:
-    INC HL
-    LD A, (HL)
-    SBC 0
-    LD (HL), A
-    DJNZ FAT_LOAD_FILE_LOOP_SUB2_
-
-; TODO: CHECK CARRY!!
-
-    ; Multiply by HDD_SECTORS_PER_CLUSTER
-    LD HL, HDD_SECTORS_PER_CLUSTER
-    LD C, (HL)
-    LD B, 4
-    LD DE, HDD_TEMP_CLUSTER
-    LD HL, 0
-FAT_LOAD_FILE_LOOP_MUL_:
-    LD L, H
-    LD A, (DE)
-    CALL MUL
-    LD A, L
-    LD (DE), A
-    INC DE
-    DJNZ FAT_LOAD_FILE_LOOP_MUL_
-
-    ; Add this to the current location
-    LD HL, HDD_TEMP_CLUSTER
-    LD DE, HDD_CURRENT_LOCATION+2
-    LD B, 4
-FAT_LOAD_FILE_LOOP_ADD_:
-    LD A, (DE)
-    ADD A, (HL)
-    LD (DE), A
-    INC HL
-    INC DE
-    DJNZ FAT_LOAD_FILE_LOOP_ADD_
-
-    POP DE
+    LD  DE, PROGRAMSECTORA
     CALL FAT_LOAD_CURRENT_LOCATION
+    
+    CALL PROGRAMSECTORA
+
+
 
     POP HL
     POP DE
@@ -438,100 +378,11 @@ FAT_SWITCH_DIRECTORY:
     PUSH DE
     PUSH HL
 
-    ; "Invert" the index
-    LD A, 16
-    SUB C
+    LD  A,  1 ;Directory
+    CALL _FAT_LOAD_DIRECTORY_LOCATION_
 
-    ; Start in the root folder
-    LD HL, HDD_ROOT_FOLDER              ; Set the root-folder as the current folder
-    CALL FAT_SET_CURRENT_LOCATION
-    LD DE, HDD_FOLDER_LOCATION          ; Prepare the folder location
+    LD DE, HDD_FOLDER_LOCATION          ; Set the folder location
     CALL FAT_COPY_CURRENT_LOCATION
-
-    ; Locate the correct offset
-    LD C, FAT_DIR_DATASIZE
-    LD HL, DISKSECTORA
-    CALL MUL ; Jump to the index
-
-    ; Store base cluster
-    PUSH HL
-    LD DE, FAT_DIR_FIRST_CLUSTER_LOW
-    ADD HL, DE
-    LD DE, HDD_TEMP_CLUSTER
-    LDI
-    LDI
-    POP HL
-    PUSH DE
-    LD DE, FAT_DIR_FIRST_CLUSTER_HI
-    ADD HL, DE
-    POP DE
-    ;LD DE, HDD_TEMP_CLUSTER +2
-    LDI
-    LDI
-
-    ; Subtract 2
-    LD HL, HDD_TEMP_CLUSTER
-    LD A, (HL)
-    SUB 2
-    LD (HL), A
-    LD B, 3
-FAT_SWITCH_DIRECTORY_LOOP_SUB2_:
-    INC HL
-    LD A, (HL)
-    SBC 0
-    LD (HL), A
-    DJNZ FAT_SWITCH_DIRECTORY_LOOP_SUB2_
-
-    JR C, FAT_SWITCH_DIRECTORY_TO_ROOT  ; If carry, go back to root
-
-;    ; If Fat16, add 32  TODO: Calculate this number...
-;    LD DE, HDD_ROOT_FOLDER
-;    LD A, (DE)  ; Load partition format
-;    CP  MBR_TYPE_FAT32
-;    JR  z, FAT_SWITCH_DIRECTORY_SKIP_FAT16_
-;    CP  MBR_TYPE_FAT32_1
-;    JR  z, FAT_SWITCH_DIRECTORY_SKIP_FAT16_
-;    
-;    LD HL, HDD_TEMP_CLUSTER
-;    LD A, (HL)
-;    ADD 32
-;    LD (HL), A
-;    LD B, 3
-;FAT_SWITCH_DIRECTORY_LOOP_ADD32_:
-;    INC HL
-;    LD A, (HL)
-;    ADC 0
-;    LD (HL), A
-;    DJNZ FAT_SWITCH_DIRECTORY_LOOP_ADD32_
-;
-;FAT_SWITCH_DIRECTORY_SKIP_FAT16_
-    ; Multiply by HDD_SECTORS_PER_CLUSTER
-    LD HL, HDD_SECTORS_PER_CLUSTER
-    LD C, (HL)
-    LD B, 4
-    LD DE, HDD_TEMP_CLUSTER
-    LD HL, 0
-FAT_SWITCH_DIRECTORY_LOOP_MUL_:
-    LD L, H
-    LD H, 0
-    LD A, (DE)
-    CALL MUL
-    LD A, L
-    LD (DE), A
-    INC DE
-    DJNZ FAT_SWITCH_DIRECTORY_LOOP_MUL_
-
-    ; Add this to the current location
-    LD HL, HDD_TEMP_CLUSTER
-    LD DE, HDD_FOLDER_LOCATION+2
-    LD B, 4
-FAT_SWITCH_DIRECTORY_LOOP_ADD_:
-    LD A, (DE)
-    ADD A, (HL)
-    LD (DE), A
-    INC HL
-    INC DE
-    DJNZ FAT_SWITCH_DIRECTORY_LOOP_ADD_
 
     ; Folder name = . 
     LD HL, FAT_TARGET_NAME
@@ -575,6 +426,7 @@ FAT_SWITCH_DIRECTORY_DONE:
     RET
 
 FAT_SWITCH_DIRECTORY_TO_ROOT:
+    POP     HL  ;Pop return address off the stack
     LD HL, HDD_ROOT_FOLDER
     CALL FAT_SET_CURRENT_LOCATION
     LD DE, HDD_FOLDER_LOCATION
@@ -584,15 +436,113 @@ FAT_SWITCH_DIRECTORY_TO_ROOT:
     LD (HL), A
     JR FAT_SWITCH_DIRECTORY_DONE
 
-; 18432 + 72 = 18504
-; 18496
-; 18504     0000 4848
 
-;1369770384 51A5 0990
+; A: 0 = File, value = Directory
+; C: 16 - C = File index in current sector
+; DISKSECTORA. current sector content
+_FAT_LOAD_DIRECTORY_LOCATION_:
+    PUSH AF
+    ; "Invert" the index
+    LD A, 16
+    SUB C
 
-; 2048 + 462 + 2 = 2512
-; E7 * 2
-; 2547  -2544   ; 
+    ; Start in the root folder
+    LD HL, HDD_ROOT_FOLDER              ; Set the root-folder as the current folder
+    CALL FAT_SET_CURRENT_LOCATION
+
+    ; Locate the correct offset
+    LD C, FAT_DIR_DATASIZE
+    LD HL, DISKSECTORA
+    CALL MUL ; Jump to the index
+
+    ; Store base cluster
+    PUSH HL
+    LD DE, FAT_DIR_FIRST_CLUSTER_LOW
+    ADD HL, DE
+    LD DE, HDD_TEMP_CLUSTER
+    LDI
+    LDI
+    POP HL
+    PUSH DE
+    LD DE, FAT_DIR_FIRST_CLUSTER_HI
+    ADD HL, DE
+    POP DE
+    ;LD DE, HDD_TEMP_CLUSTER +2
+    LDI
+    LDI
+
+    ; Subtract 2
+    LD HL, HDD_TEMP_CLUSTER
+    LD A, (HL)
+    SUB 2
+    LD (HL), A
+    LD B, 3
+_FAT_LOAD_DIRECTORY_LOCATION_LOOP_SUB2_:
+    INC HL
+    LD A, (HL)
+    SBC 0
+    LD (HL), A
+    DJNZ _FAT_LOAD_DIRECTORY_LOCATION_LOOP_SUB2_
+
+    JR NC, _FAT_LOAD_DIRECTORY_LOCATION_NOT_ROOT_  ; If carry, go back to root
+    POP     AF
+    CP      0
+    JR      NZ,  FAT_SWITCH_DIRECTORY_TO_ROOT
+    PUSH    AF
+_FAT_LOAD_DIRECTORY_LOCATION_NOT_ROOT_
+    POP AF
+
+;    ; If Fat16, add 32  TODO: Calculate this number...
+;    LD DE, HDD_ROOT_FOLDER
+;    LD A, (DE)  ; Load partition format
+;    CP  MBR_TYPE_FAT32
+;    JR  z, FAT_SWITCH_DIRECTORY_SKIP_FAT16_
+;    CP  MBR_TYPE_FAT32_1
+;    JR  z, FAT_SWITCH_DIRECTORY_SKIP_FAT16_
+;    
+;    LD HL, HDD_TEMP_CLUSTER
+;    LD A, (HL)
+;    ADD 32
+;    LD (HL), A
+;    LD B, 3
+;FAT_SWITCH_DIRECTORY_LOOP_ADD32_:
+;    INC HL
+;    LD A, (HL)
+;    ADC 0
+;    LD (HL), A
+;    DJNZ FAT_SWITCH_DIRECTORY_LOOP_ADD32_
+;
+;FAT_SWITCH_DIRECTORY_SKIP_FAT16_
+    ; Multiply by HDD_SECTORS_PER_CLUSTER
+    LD HL, HDD_SECTORS_PER_CLUSTER
+    LD C, (HL)
+    LD B, 4
+    LD DE, HDD_TEMP_CLUSTER
+    LD HL, 0
+_FAT_LOAD_DIRECTORY_LOCATION_LOOP_MUL_:
+    LD L, H
+    LD H, 0
+    LD A, (DE)
+    CALL MUL
+    LD A, L
+    LD (DE), A
+    INC DE
+    DJNZ _FAT_LOAD_DIRECTORY_LOCATION_LOOP_MUL_
+
+    ; Add this to the current location
+    LD HL, HDD_TEMP_CLUSTER
+    LD DE, HDD_CURRENT_LOCATION+2
+    LD B, 4
+_FAT_LOAD_DIRECTORY_LOCATION_LOOP_ADD_:
+    LD A, (DE)
+    ADD A, (HL)
+    LD (DE), A
+    INC HL
+    INC DE
+    DJNZ _FAT_LOAD_DIRECTORY_LOCATION_LOOP_ADD_
+    RET
+
+
 
 DEBUG_CURRENT_LOCATION:
     push af
